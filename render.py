@@ -202,6 +202,109 @@ def _break_even_svg(chart: dict) -> str:
     return "".join(parts)
 
 
+# Cash-flow chart geometry: a separate value-axis step ($25k) since per-year cash flows are
+# tens of thousands, not the millions of the net-worth chart. One definition, shared with JS.
+CASHFLOW_STEP = 25_000.0
+
+
+def _cashflow_svg(chart: dict) -> str:
+    """Inline SVG of the HOLD path's per-year economic cash flow over the holding period
+    (X = years). It crosses $0: a drain early (rent doesn't cover the mortgage), turning
+    positive once the loan is paid off. SELL is a flat $0 line (proceeds reinvested, nothing
+    withdrawn). Drawing only — numbers come from compute()'s cashflow_chart; no financial
+    math here, just coordinate mapping. DATA only: two plain lines, a zero baseline, a
+    payoff tick. No labeling of a side as better (CLAUDE.md rule 2). JS mirrors this layout.
+    """
+    grid = chart["year_grid"]
+    hold = chart["hold"]
+    payoff = chart["payoff_year"]
+
+    W, Hh = CHART_W, CHART_HH
+    ml, mr, mt, mb = CHART_ML, CHART_MR, CHART_MT, CHART_MB
+    x0, x1 = ml, W - mr
+    y0, y1 = Hh - mb, mt
+
+    ax_min, ax_max = grid[0], grid[-1]
+    step = CASHFLOW_STEP
+    # Include 0 in the value range so the baseline is always on-screen.
+    raw_lo = min(min(hold), 0.0)
+    raw_hi = max(max(hold), 0.0)
+    y_min = math.floor(raw_lo / step) * step
+    y_max = math.ceil(raw_hi / step) * step
+    if y_max == y_min:
+        y_max = y_min + step
+
+    def px(t):
+        return x0 + (t - ax_min) / (ax_max - ax_min) * (x1 - x0)
+
+    def py(v):
+        return y0 + (v - y_min) / (y_max - y_min) * (y1 - y0)
+
+    hold_pts = " ".join(f"{px(t):.1f},{py(v):.1f}" for t, v in zip(grid, hold))
+    zero_y = py(0.0)
+    parts = [
+        f'<svg viewBox="0 0 {W} {Hh}" role="img" '
+        'aria-label="Hold per-year cash flow over the holding period; negative early, '
+        'turning positive after the mortgage is paid off; the sell line is flat at zero." '
+        'style="width:100%;height:auto;font:12px system-ui,sans-serif">'
+    ]
+    # Axes
+    parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x0}" y2="{y1}" stroke="#bbb"/>')
+
+    # Y gridlines + $ labels at every step (signed, in $k)
+    n_steps = round((y_max - y_min) / step)
+    for i in range(n_steps + 1):
+        v = y_min + i * step
+        yy = py(v)
+        parts.append(f'<line x1="{x0}" y1="{yy:.1f}" x2="{x1}" y2="{yy:.1f}" stroke="#eee"/>')
+        k = v / 1000
+        label = f"−${abs(k):.0f}k" if k < 0 else f"${k:.0f}k"
+        parts.append(
+            f'<text x="{x0 - 6}" y="{yy + 4:.1f}" text-anchor="end" fill="#666">{label}</text>'
+        )
+
+    # X ticks every 5 years
+    t = ax_min
+    while t <= ax_max + 1e-9:
+        parts.append(
+            f'<text x="{px(t):.1f}" y="{y0 + 18}" text-anchor="middle" fill="#666">{t:g}</text>'
+        )
+        t += 5
+
+    # Mortgage-payoff tick — the cash flow jumps up here as P&I ends.
+    if ax_min <= payoff <= ax_max:
+        xx = px(payoff)
+        parts.append(
+            f'<line x1="{xx:.1f}" y1="{y0}" x2="{xx:.1f}" y2="{y1}" '
+            'stroke="#cdd6e5" stroke-dasharray="3 3"/>'
+        )
+        parts.append(
+            f'<text x="{xx:.1f}" y="{y1 - 10:.1f}" text-anchor="middle" fill="#90a">'
+            f"loan paid off ~{payoff:.0f}y</text>"
+        )
+
+    # Zero baseline = the SELL line (flat $0, proceeds reinvested) AND the cash-flow axis.
+    parts.append(
+        f'<line x1="{x0}" y1="{zero_y:.1f}" x2="{x1}" y2="{zero_y:.1f}" '
+        'stroke="#2a7" stroke-width="2"/>'
+    )
+    # Hold cash-flow line
+    parts.append(f'<polyline points="{hold_pts}" fill="none" stroke="#36c" stroke-width="2"/>')
+
+    parts.append(
+        f'<text x="{x0 + 6}" y="{py(hold[0]) + 16:.1f}" text-anchor="start" fill="#36c">Hold</text>'
+    )
+    parts.append(
+        f'<text x="{x1 - 6}" y="{zero_y - 8:.1f}" text-anchor="end" fill="#2a7">Sell now ($0)</text>'
+    )
+    parts.append(
+        f'<text x="{(x0 + x1) / 2:.0f}" y="{Hh - 4}" text-anchor="middle" fill="#444">'
+        "Years held (per-year cash in/out of pocket)</text>"
+    )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def build_context(m: Model) -> dict:
     p = m.p
     sell = m.calc_sell()
@@ -314,6 +417,9 @@ def build_context(m: Model) -> dict:
         f'<tr class="sell"><td>Sell now + invest</td>{be_tbl_sell}</tr>'
         f'<tr class="total"><td>Hold − Sell</td>{be_tbl_gap}</tr></tbody>'
     )
+
+    # Server-rendered seed for the per-year cash-flow chart (base case). JS swaps it live.
+    cashflow_svg = _cashflow_svg(computed["cashflow_chart"])
 
     # Worked example
     we = m.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
@@ -519,6 +625,10 @@ def build_context(m: Model) -> dict:
             "yearGrid": bec["year_grid"],
             "horizon": bec["horizon"],
             "payoffYear": bec["payoff_year"],
+            # Per-year cash-flow chart shares the box but uses its own $ step and year grid
+            # (cash flows are a flow during years 0..hz-1, not an end-of-year stock at 0..hz).
+            "cashflowStep": CASHFLOW_STEP,
+            "cashflowYearGrid": computed["cashflow_chart"]["year_grid"],
         }
     )
     with open(os.path.join("static", "model.js")) as f:
@@ -580,6 +690,7 @@ def build_context(m: Model) -> dict:
         "be_chart_svg": M(be_chart_svg),
         "be_chart_horizon": be_chart_horizon,
         "be_table_seed": M(be_table_seed),
+        "cashflow_svg": M(cashflow_svg),
         # Interactive explorer: PARAMS/CHART are pre-serialized JSON (safe to mark Markup
         # for inline <script>); model_js is the inlined engine. Slider defaults/ranges.
         "params_json": M(params_json),

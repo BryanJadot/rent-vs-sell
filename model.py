@@ -869,6 +869,25 @@ class Model:
             "payoff_year": payoff_year,
         }
 
+        # Per-year CASH-FLOW chart: the HOLD path's actual economic cash flow each year (rent
+        # − operating costs − P&I that year + deprec shield − risk drag), which is what hits
+        # the bank account. It's a deep drain early (rent doesn't cover the mortgage) and
+        # flips POSITIVE once the loan is paid off — surfacing the "you're FUNDING this, not
+        # harvesting it" fact that the net-worth chart buries inside cash_flow_fv. The SELL
+        # path has NO yearly cash flow: the proceeds are reinvested and compound untouched,
+        # nothing is withdrawn — so its line is a flat $0 (stored once for the renderer).
+        # Data only — render plots these; it draws no conclusion. year_index 0..hz-1 (a cash
+        # flow is a flow DURING a year, so the last plotted year is hz−1, unlike the
+        # net-worth chart whose points are end-of-year stocks at 0..hz).
+        cashflow_years = list(range(0, hz))
+        cashflow_hold = [self._year_cash_flow(p.primary_rent, y) for y in cashflow_years]
+        cashflow_chart = {
+            "year_grid": cashflow_years,
+            "hold": cashflow_hold,
+            "sell": 0.0,  # reinvested proceeds throw off no withdrawn cash flow
+            "payoff_year": payoff_year,
+        }
+
         we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
         # What a dollar at the longest horizon is worth in today's purchasing power,
         # derived from INFLATION_RATE so the report's "worth ~X today" line can never
@@ -948,6 +967,7 @@ class Model:
             "opp_rate_sensitivity": opp_rate_sensitivity,
             "break_even": break_even,
             "break_even_chart": break_even_chart,
+            "cashflow_chart": cashflow_chart,
             "worked_example": asdict(we),
             "risk": risk,
             # Neutral cash FACTS only — out-of-pocket figures used by the report. The

@@ -405,6 +405,71 @@ if (typeof document !== "undefined") {
     return parts.join("");
   }
 
+  // Per-year cash-flow chart. HOLD's economic cash flow each year (rent − costs − P&I that
+  // year + shield − risk drag), crossing $0 and turning positive at payoff; SELL flat at $0
+  // (proceeds reinvested, nothing withdrawn). Mirror of render._cashflow_svg. NOTE: this
+  // depends only on rent growth — appreciation and market return don't change the yearly
+  // cash in/out of the property, so only the rent slider moves this chart.
+  function buildCashflowSvg(rentGrowth) {
+    const grid = C.cashflowYearGrid;
+    const hold = grid.map((y) => yearCashFlow(P, P.primary_rent, y, rentGrowth));
+    const payoff = C.payoffYear;
+
+    const W = C.W, Hh = C.Hh;
+    const ml = C.ml, mr = C.mr, mt = C.mt, mb = C.mb;
+    const x0 = ml, x1 = W - mr;
+    const y0 = Hh - mb, y1 = mt;
+    const axMin = grid[0], axMax = grid[grid.length - 1];
+
+    const step = C.cashflowStep;
+    const rawLo = Math.min(Math.min(...hold), 0.0);
+    const rawHi = Math.max(Math.max(...hold), 0.0);
+    let yMin = Math.floor(rawLo / step) * step;
+    let yMax = Math.ceil(rawHi / step) * step;
+    if (yMax === yMin) yMax = yMin + step;
+
+    const px = (t) => x0 + ((t - axMin) / (axMax - axMin)) * (x1 - x0);
+    const py = (v) => y0 + ((v - yMin) / (yMax - yMin)) * (y1 - y0);
+    const holdPts = grid.map((t, i) => `${px(t).toFixed(1)},${py(hold[i]).toFixed(1)}`).join(" ");
+    const zeroY = py(0.0);
+    const parts = [];
+
+    parts.push(
+      `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Hold per-year cash flow over the ` +
+        `holding period; negative early, turning positive after the mortgage is paid off; ` +
+        `the sell line is flat at zero." style="width:100%;height:auto;font:12px system-ui,sans-serif">`
+    );
+    parts.push(`<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}" stroke="#bbb"/>`);
+
+    const nSteps = Math.round((yMax - yMin) / step);
+    for (let i = 0; i <= nSteps; i++) {
+      const v = yMin + i * step;
+      const yy = py(v);
+      parts.push(`<line x1="${x0}" y1="${yy.toFixed(1)}" x2="${x1}" y2="${yy.toFixed(1)}" stroke="#eee"/>`);
+      const k = v / 1000;
+      const label = k < 0 ? `−$${Math.abs(k).toFixed(0)}k` : `$${k.toFixed(0)}k`;
+      parts.push(`<text x="${x0 - 6}" y="${(yy + 4).toFixed(1)}" text-anchor="end" fill="#666">${label}</text>`);
+    }
+
+    for (let t = axMin; t <= axMax + 1e-9; t += 5) {
+      parts.push(`<text x="${px(t).toFixed(1)}" y="${y0 + 18}" text-anchor="middle" fill="#666">${t}</text>`);
+    }
+
+    if (axMin <= payoff && payoff <= axMax) {
+      const xx = px(payoff);
+      parts.push(`<line x1="${xx.toFixed(1)}" y1="${y0}" x2="${xx.toFixed(1)}" y2="${y1}" stroke="#cdd6e5" stroke-dasharray="3 3"/>`);
+      parts.push(`<text x="${xx.toFixed(1)}" y="${(y1 - 10).toFixed(1)}" text-anchor="middle" fill="#90a">loan paid off ~${payoff.toFixed(0)}y</text>`);
+    }
+
+    parts.push(`<line x1="${x0}" y1="${zeroY.toFixed(1)}" x2="${x1}" y2="${zeroY.toFixed(1)}" stroke="#2a7" stroke-width="2"/>`);
+    parts.push(`<polyline points="${holdPts}" fill="none" stroke="#36c" stroke-width="2"/>`);
+    parts.push(`<text x="${(x0 + 6).toFixed(1)}" y="${(py(hold[0]) + 16).toFixed(1)}" text-anchor="start" fill="#36c">Hold</text>`);
+    parts.push(`<text x="${(x1 - 6).toFixed(1)}" y="${(zeroY - 8).toFixed(1)}" text-anchor="end" fill="#2a7">Sell now ($0)</text>`);
+    parts.push(`<text x="${((x0 + x1) / 2).toFixed(0)}" y="${Hh - 4}" text-anchor="middle" fill="#444">Years held (per-year cash in/out of pocket)</text>`);
+    parts.push("</svg>");
+    return parts.join("");
+  }
+
   // Neutral readout: figures only — gap at the longest horizon + crossover year.
   // No "you should"/"better"/"win" (CLAUDE.md rule 2).
   function buildReadout(appr, rentGrowth, marketRate) {
@@ -473,6 +538,8 @@ if (typeof document !== "undefined") {
     if (tbl) tbl.innerHTML = buildHorizonTable(appr, rentGrowth, marketRate);
     document.getElementById("be-chart-live").innerHTML = buildSvg(appr, rentGrowth, marketRate);
     document.getElementById("be-readout").innerHTML = buildReadout(appr, rentGrowth, marketRate);
+    const cf = document.getElementById("cashflow-chart-live");
+    if (cf) cf.innerHTML = buildCashflowSvg(rentGrowth);
   }
 
   function init() {

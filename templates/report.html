@@ -83,6 +83,15 @@
     <p class="legend" style="margin-top:8px">Each curve is total wealth at that holding length: <b>Hold</b> (blue, keep &amp; rent
     then sell) vs. <b>Sell now</b> (green, sell today and invest the proceeds). The black dot marks where they cross; the dashed
     tick is the year the mortgage is paid off (the Hold curve bends there as the P&amp;I payment ends).</p>
+
+    <h4 style="margin:20px 0 4px;color:var(--accent);font-size:14px">Cash in and out, year by year</h4>
+    <p class="sub" style="margin:0 0 6px">What the property actually puts in or takes out of your pocket each year — the cash you
+    <b>fund it with</b>, separate from the wealth it builds. (Only rent growth moves this; appreciation and market return don't
+    change the yearly cash.)</p>
+    <div id="cashflow-chart-live">{{ cashflow_svg }}</div>
+    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) is the yearly rent minus operating costs minus the mortgage —
+    negative while the loan runs (rent doesn't cover it), turning positive once the loan is paid off (dashed tick). <b>Sell now</b>
+    (green, flat $0): the proceeds are invested and compound untouched, so there's no yearly cash in or out.</p>
   </div>
   <table>
     <thead><tr><th>Break-even appreciation (both sides earn {{ '%g'|format(be_opp_pct) }}% market return)</th>{{ hz_head }}</tr></thead>
