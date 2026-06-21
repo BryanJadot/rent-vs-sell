@@ -25,16 +25,27 @@
     <div><div class="sub">Mortgage rate (derived)</div><b>{{ '%.3f'|format(apr*100) }}%</b></div>
   </div></div>
 
+  <div class="card">
+    <b>A few money words, in plain English</b>
+    <ul style="margin:6px 0 0">
+      <li><b>Market return</b> — what cash would earn if invested in the stock market instead ({{ '%g'|format(primary_invest*100) }}%/yr here). Money tied up elsewhere "costs" you this forgone return.</li>
+      <li><b>§121 exclusion</b> — a tax break that shields the first ${{ '{:g}'.format(cg_exclusion/1000) }}k of gain on a home you've lived in (2 of the last 5 yrs); a pure rental doesn't get it.</li>
+      <li><b>Depreciation</b> — a yearly paper deduction landlords take for wear-and-tear. At high income it can't be used yearly (it's <b>suspended</b>) and is applied later when you sell.</li>
+      <li><b>Depreciation recapture</b> — at sale, the IRS taxes back those depreciation deductions ({{ '%.1f'|format(deprec_recapture_rate*100) }}% here).</li>
+      <li><b>Pre-tax / after-tax</b> — both paths grow money pre-tax and pay the tax once at the end, so the comparison is fair.</li>
+    </ul>
+  </div>
+
   <!-- ===== 1. THE MONEY ===== -->
   <h2>1. The money — what each path is worth</h2>
   <p class="sub">Total wealth each path leaves you with at each horizon, fully loaded (all costs and taxes on both sides).</p>
   <table>
-    <thead><tr><th>Option (primary {{ '%g'|format(primary_appreciation*100) }}% appreciation)</th>{{ hz_head }}</tr></thead>
+    <thead><tr><th>Option (main case: {{ '%g'|format(primary_appreciation*100) }}% appreciation)</th>{{ hz_head }}</tr></thead>
     <tbody>{{ headline_rows }}</tbody>
   </table>
-  <p class="legend">"Full rental" = sold as a rental (no §121 exclusion). "Hold ≤3 yrs" keeps the full
-  ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale exclusion (only available if sold within 3 yrs, before the 2-of-5-year
-  residence test lapses). "Sell now + invest" is shown after-tax, the same way the home's gain is taxed.</p>
+  <p class="legend">"Full rental" = sold as a rental (no §121 break). "Sell within 3 yrs" is the only hold option that still
+  keeps the ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale break — it lapses once you've rented past the 2-of-5-year
+  residence test. "Sell now + invest" is shown after-tax, the same way the home's gain is taxed.</p>
 
   <h3>Break-even: how fast the house must grow</h3>
   <p class="sub">The appreciation rate at which holding and selling end up <b>equal</b> at each horizon. Above it, holding ends
@@ -84,28 +95,28 @@
     <thead><tr><th>Hold (keep &amp; rent)</th><th>Sell now</th></tr></thead>
     <tbody>
       <tr>
-        <td>You become a landlord: tenants, repairs, turnover, management.</td>
-        <td>No property to manage; the money sits in a brokerage account.</td>
+        <td><b>Effort:</b> you run a rental — tenants, repairs, turnover, management.</td>
+        <td><b>Effort:</b> you manage a brokerage account.</td>
       </tr>
       <tr>
-        <td>Cash flow is negative — about −${{ '{:,.0f}'.format(-base_oop/12) }}/mo at ${{ '{:g}'.format(primary_rent/1000) }}k rent (detail below) — funded from savings.</td>
-        <td>No monthly drain; the invested proceeds can generate income instead.</td>
+        <td><b>Monthly money:</b> the property draws about −${{ '{:,.0f}'.format(-base_oop/12) }}/mo at ${{ '{:g}'.format(primary_rent/1000) }}k rent (detail below), funded from savings.</td>
+        <td><b>Monthly money:</b> the invested proceeds can pay out income (≈${{ '{:,.0f}'.format(inc_lo/12) }}–${{ '{:,.0f}'.format(inc_hi/12) }}/mo pre-tax).</td>
       </tr>
       <tr>
-        <td>A bad year (long vacancy, eviction, major repair) can cost much more (detail below). Reserve held: ${{ '{:,.0f}'.format(cash_reserve) }}.</td>
-        <td>No landlord tail risk; market risk applies to the invested proceeds.</td>
+        <td><b>Risk shape:</b> a bad year (long vacancy, eviction, major repair) can cost much more (detail below); reserve held ${{ '{:,.0f}'.format(cash_reserve) }}.</td>
+        <td><b>Risk shape:</b> the portfolio rises and falls with the market.</td>
       </tr>
       <tr>
-        <td>~${{ '%.2f'|format(home_value/1e6) }}M stays concentrated in one leveraged property.</td>
-        <td>Proceeds are liquid and can be spread across a diversified portfolio.</td>
+        <td><b>Diversification:</b> ~${{ '%.2f'|format(home_value/1e6) }}M stays in one mortgaged property.</td>
+        <td><b>Diversification:</b> the proceeds are liquid and can be spread across many holdings.</td>
       </tr>
       <tr>
-        <td>Taxes on the gain are deferred to the future sale.</td>
-        <td>Taxes on the gain (if any) are paid now; see the build detail in §4.</td>
+        <td><b>Taxes:</b> the gain is taxed later, at the future sale.</td>
+        <td><b>Taxes:</b> the gain (if any) is taxed now (detail in §4).</td>
       </tr>
       <tr>
-        <td>AB 1482: an SF single-family home keeps its rent-cap exemption only if you serve the written exemption notice. Just-cause eviction rules apply, and a tenant-occupied home is generally harder to sell vacant.</td>
-        <td>None of the rental/eviction rules apply once sold.</td>
+        <td><b>Rules:</b> as an SF rental it's under AB 1482 (keep the rent-cap exemption by serving the written notice) and just-cause eviction; a tenant-occupied home is harder to sell vacant.</td>
+        <td><b>Rules:</b> once sold, you're a former owner with no landlord obligations.</td>
       </tr>
     </tbody>
   </table>

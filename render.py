@@ -228,10 +228,11 @@ def build_context(m: Model) -> dict:
             ).net_worth
             w3 += f"<td>{v:,.0f}</td>"
         else:
-            w3 += '<td class="sub">n/a*</td>'
+            w3 += '<td class="sub">—</td>'
     headline += (
-        f"<tr><td>Hold ≤3 yrs then sell "
-        f'<span class="sub">(keeps full ${CG_EXCLUSION / 1000:g}k §121)</span></td>{w3}</tr>'
+        f"<tr><td>Sell within 3 yrs "
+        f'<span class="sub">(only option that keeps the ${CG_EXCLUSION / 1000:g}k §121 break; '
+        f"the dashes mean you'd already have sold)</span></td>{w3}</tr>"
     )
     for rate in INVEST_RATES:
         vals = [m.invest_net_worth(sell.net_proceeds, y, rate) for y in H]
