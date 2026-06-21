@@ -40,6 +40,16 @@
     <tbody>{{ appr_rows }}</tbody>
   </table>
 
+  <h3>Break-even appreciation</h3>
+  <p class="sub">The home-appreciation rate at which holding ends up <b>exactly equal</b> to selling now and
+  investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate). Above this
+  rate the hold ends ahead; below it, behind. Compare to the SF Case-Shiller history used above:
+  {{ '%g'|format(be_low_pct) }}% (20-yr) / {{ '%g'|format(be_mod_pct) }}% (10-yr) / {{ '%g'|format(be_high_pct) }}% (30-yr) CAGR.</p>
+  <table>
+    <thead><tr><th>Break-even (both sides at {{ '%g'|format(be_opp_pct) }}%)</th>{{ hz_head }}</tr></thead>
+    <tbody>{{ be_row }}</tbody>
+  </table>
+
   <h3>Sensitivity to rent growth</h3>
   <p class="sub">The base case grows rent {{ '%g'|format(rg_low_pct) }}%/yr (recent SF ZORI), below the home's
   {{ '%g'|format(primary_appreciation*100) }}% value growth; over long holds the two series have historically

@@ -111,6 +111,7 @@ def test_compute_dict_is_complete(m):
         "sell_grid",
         "rent_growth_sensitivity",
         "opp_rate_sensitivity",
+        "break_even",
         "worked_example",
         "risk",
         "cash_facts",
@@ -171,6 +172,18 @@ def test_major_repair_modeled_net_of_tax(m):
     """A major repair is a capital improvement, so its modeled cost is below the gross
     cash outlay (basis-driven tax recovery)."""
     assert 0 < m.net_major_repair < assumptions.MAJOR_REPAIR
+
+
+def test_break_even_appreciation_ties_hold_and_sell(m):
+    """At the solved break-even appreciation, HOLD net worth must equal SELL net worth
+    (both at the same opp rate) — the defining property of the figure."""
+    for y in assumptions.HORIZONS:
+        be = m.break_even_appreciation(y, opp_rate=assumptions.PRIMARY_INVEST)
+        hold = m.hold_net_worth(
+            m.p.primary_rent, y, be, opp_rate=assumptions.PRIMARY_INVEST
+        ).net_worth
+        sell = m.invest_net_worth(m.calc_sell().net_proceeds, y, assumptions.PRIMARY_INVEST)
+        assert abs(hold - sell) < 1.0  # bisection converges to the cent
 
 
 def test_two_properties_are_independent():

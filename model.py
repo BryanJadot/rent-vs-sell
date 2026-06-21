@@ -600,6 +600,31 @@ class Model:
         np_ = self.calc_sell().net_proceeds
         return max(self.invest_net_worth(np_, years, r) for r in INVEST_RATES)
 
+    def break_even_appreciation(self, years: int, opp_rate: float = PRIMARY_INVEST) -> float:
+        """The home-appreciation rate at which HOLD net worth equals SELL net worth at
+        `years`, with BOTH sides compounding at the same `opp_rate` (so the only thing
+        being solved for is appreciation, not an opportunity-rate mismatch). A neutral
+        FACT, not a recommendation: it tells the reader how much appreciation the hold
+        needs to break even, leaving them to judge how likely that is (and to fold in
+        their own risk tolerance — wanting margin above break-even is a risk view).
+
+        hold_net_worth is monotonically increasing in appreciation (test_higher_appr...),
+        so we bisect on appr in [−10%, +25%]/yr. Both sides use opp_rate: HOLD via its
+        cash-flow/reserve opportunity cost, SELL via invest_net_worth at the same rate.
+        Returns the break-even appreciation as a rate (e.g. 0.0325). If hold never reaches
+        sell within the bracket, returns the bracket endpoint (won't happen in practice).
+        """
+        target = self.invest_net_worth(self.calc_sell().net_proceeds, years, opp_rate)
+        lo, hi = -0.10, 0.25
+        for _ in range(100):
+            mid = (lo + hi) / 2
+            nw = self.hold_net_worth(self.p.primary_rent, years, mid, opp_rate=opp_rate).net_worth
+            if nw < target:
+                lo = mid
+            else:
+                hi = mid
+        return (lo + hi) / 2
+
     # ── Compute: bundle everything into a plain dict ───────────────────────────
     def compute(self) -> dict:
         """Bundle every computed result into one plain dict — the contract render.py
@@ -694,6 +719,18 @@ class Model:
             },
         }
 
+        # Break-even appreciation: the home-appreciation rate at which HOLD ties SELL at
+        # each horizon, both sides at the primary opp rate. A single neutral FACT per
+        # horizon that lets the reader weigh the decision against their own appreciation
+        # belief (and their own risk margin) — stated alongside the scenario rates so the
+        # cushion above/below break-even is visible. opp_rate is pinned for comparability.
+        break_even = {
+            "opp_rate": PRIMARY_INVEST,
+            "scenarios": dict(APPRECIATION),
+            "primary": PRIMARY_APPRECIATION,
+            "rows": {y: self.break_even_appreciation(y) for y in H},
+        }
+
         we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
         hz = max(H)
 
@@ -767,6 +804,7 @@ class Model:
             "best_sell_by_horizon": best_sell_by_h,
             "rent_growth_sensitivity": rent_growth_sensitivity,
             "opp_rate_sensitivity": opp_rate_sensitivity,
+            "break_even": break_even,
             "worked_example": asdict(we),
             "risk": risk,
             # Neutral cash FACTS only — out-of-pocket figures used by the report. The

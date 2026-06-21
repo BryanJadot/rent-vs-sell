@@ -146,6 +146,18 @@ def build_context(m: Model) -> dict:
         cls="sell",
     )
 
+    # Break-even appreciation row: the appreciation rate at which HOLD ties SELL at each
+    # horizon (both sides at the primary opp rate). Percentages, not dollars — one row.
+    # Data from compute() so render doesn't re-solve. The accompanying note compares it to
+    # the SF historical CAGR scenarios; render only formats the numbers it's handed.
+    be = computed["break_even"]
+    be_cells = "".join(f"<td><b>{be['rows'][y] * 100:.2f}%</b></td>" for y in H)
+    be_row = f'<tr class="primary"><td>Appreciation HOLD needs to tie SELL</td>{be_cells}</tr>'
+    be_opp_pct = be["opp_rate"] * 100
+    be_low_pct = be["scenarios"]["low"] * 100
+    be_mod_pct = be["scenarios"]["moderate"] * 100
+    be_high_pct = be["scenarios"]["high"] * 100
+
     # Worked example
     we = m.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
 
@@ -343,6 +355,11 @@ def build_context(m: Model) -> dict:
         "rg_low_pct": rg_low_pct,
         "rg_high_pct": rg_high_pct,
         "rate_rows": M(rate_rows),
+        "be_row": M(be_row),
+        "be_opp_pct": be_opp_pct,
+        "be_low_pct": be_low_pct,
+        "be_mod_pct": be_mod_pct,
+        "be_high_pct": be_high_pct,
         "oop_head": M(oop_head),
         "oop_rows": [M(x) for x in oop_rows],
         "oop_net": M(oop_net),
