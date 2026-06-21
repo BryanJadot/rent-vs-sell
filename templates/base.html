@@ -42,6 +42,13 @@
   .legend { font-size:13px; color:var(--muted); margin:6px 0 0; }
   code { background:#f0f0f0; padding:1px 5px; border-radius:4px; font-size:13px; }
   .nav { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin:14px 0; font-size:14px; }
+  /* Collapsible verify-layer detail (no JS). Collapsed by default; the summary is the
+     one-line handle. Printing forces them open so the PDF shows everything. */
+  details { border:1px solid var(--line); border-radius:8px; padding:8px 14px; margin:10px 0; background:#fff; }
+  details + details { margin-top:8px; }
+  summary { cursor:pointer; font-weight:600; color:var(--accent); }
+  details[open] summary { margin-bottom:4px; }
+  @media print { details { display:block; } details > *:not(summary) { display:revert; } }
 </style>
 </head>
 <body>

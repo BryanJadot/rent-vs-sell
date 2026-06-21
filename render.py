@@ -304,6 +304,25 @@ def build_context(m: Model) -> dict:
 
     oop_head = "".join(f"<th>${r / 1000:g}k/mo</th>" for r in p.realistic_rents)
     oop_rows = [oop_row(f) for f in ("rent_in", "mortgage_out", "opex_out", "tax_back")]
+
+    # Opex broken into its parts (property tax / insurance / repairs / management),
+    # each a negative cash row across the rent columns. Components come from calc_rent
+    # (Rent.prop_tax, .other_fixed = insurance+repairs, .mgmt, .leasing) — Rule 1, render
+    # does no math, just splits the line the model already computed. mgmt+leasing are
+    # combined into "Management" since both are management-of-tenant costs.
+    def opex_part_row(part_fn):
+        cells = ""
+        for r in p.realistic_rents:
+            v = part_fn(m.calc_rent(r))
+            cells += f'<td class="num-bad">−{abs(v):,.0f}</td>'
+        return cells
+
+    opex_part_rows = {
+        "prop_tax": opex_part_row(lambda rt: rt.prop_tax),
+        "insurance": opex_part_row(lambda rt: p.insurance),
+        "repairs": opex_part_row(lambda rt: p.repairs),
+        "mgmt": opex_part_row(lambda rt: rt.mgmt + rt.leasing),
+    }
     oop_net = "".join(
         f'<td class="num-bad">−{abs(m.oop_breakdown(r).net):,.0f}</td>' for r in p.realistic_rents
     )
@@ -314,6 +333,15 @@ def build_context(m: Model) -> dict:
 
     inc_lo = sell.net_proceeds * INVEST_RATES[0]
     inc_hi = sell.net_proceeds * INVEST_RATES[1]
+
+    # "Other factors" — rent-level range: the longest-horizon hold net worth across a
+    # plausible rent band (low = $500 below primary, high = $500 above the upper realistic
+    # rent), so §3 can state the magnitude factually. Model owns the math.
+    longest_h = max(H)
+    rent_lo = p.primary_rent - 500
+    rent_hi = max(p.realistic_rents) + 500
+    rent_lo_nw = m.hold_net_worth(rent_lo, longest_h, PRIMARY_APPRECIATION).net_worth
+    rent_hi_nw = m.hold_net_worth(rent_hi, longest_h, PRIMARY_APPRECIATION).net_worth
 
     # Risk rows — values come from compute()["risk"] (model owns the math, incl. the
     # net-of-tax major-repair cost; render only arranges).
@@ -435,7 +463,7 @@ def build_context(m: Model) -> dict:
     for r in ors["rates"]:
         key = f"{int(r * 100)}%"
         rate_rows += _nw_row(
-            f'Hold <span class="sub">(opp. cost &amp; sell both at {key})</span>',
+            f'Hold <span class="sub">(both sides earn {key} market return)</span>',
             [ors["rows"][y][key]["hold"] for y in H],
             cls="primary",
         )
@@ -498,12 +526,19 @@ def build_context(m: Model) -> dict:
         "be_chart_horizon": be_chart_horizon,
         "oop_head": M(oop_head),
         "oop_rows": [M(x) for x in oop_rows],
+        "opex_part_rows": {k: M(v) for k, v in opex_part_rows.items()},
         "oop_net": M(oop_net),
         "oop_mo": M(oop_mo),
         "risk_rows": M(risk_rows),
         "assumption_rows": M(assumption_rows),
         "inc_lo": inc_lo,
         "inc_hi": inc_hi,
+        "invest_lo": INVEST_RATES[0],
+        "invest_hi": INVEST_RATES[1],
+        "rent_lo": rent_lo,
+        "rent_hi": rent_hi,
+        "rent_lo_nw": rent_lo_nw,
+        "rent_hi_nw": rent_hi_nw,
         "base_oop": base_oop,
         "worst_total": worst_total,
         "reserve_cost_yr": v["reserve_cost_yr"],

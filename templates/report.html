@@ -6,195 +6,206 @@
 
   <div class="card">
     <b>How to read this</b>
-    <p class="sub" style="margin-top:6px">This compares two paths for one house:</p>
-    <ul style="margin:0 0 8px">
+    <ul style="margin:6px 0 8px">
       <li><b>Sell now:</b> sell today, pay the costs and taxes, invest what's left in the market.</li>
       <li><b>Hold:</b> keep it and rent it out, then sell later — paying the selling costs and taxes at that future sale too.</li>
+      <li>Each figure is the <b>total wealth</b> a path leaves you with at a given future year ({{ shortest_horizon }}–{{ longest_horizon }} yrs out),
+        after all costs and taxes on <i>both</i> sides — so the two are comparable.</li>
+      <li>Figures are <b>future dollars</b>, not inflation-adjusted: at {{ '%g'|format(inflation_pct) }}% inflation, $1 in {{ longest_horizon }} yrs
+        is worth ~{{ '%.0f'|format(today_value_pct) }}&cent; today. Both paths use the same future dollars, so they stay comparable.</li>
     </ul>
-    <p class="sub" style="margin:0">Each number is the <b>total wealth</b> a path leaves you with at a given future year
-    ({{ shortest_horizon }}–{{ longest_horizon }} yrs out),
-    after all costs and taxes on <i>both</i> sides, so the two are comparable. Figures are <b>nominal future dollars</b>
-    (not inflation-adjusted): at {{ '%g'|format(inflation_pct) }}% inflation, a dollar {{ longest_horizon }} years out is worth
-    about {{ '%.0f'|format(today_value_pct) }}&cent; in today's money — but since both paths are in the same future dollars, they
-    stay on a common basis. This page is computed <b>data only</b>:
-    figures, sensitivities, and how each number is built. It draws no conclusion about which choice to make.</p>
+    <p class="sub" style="margin:0">This page is <b>data only</b> — figures and how they're built. It draws no conclusion about which choice to make.</p>
   </div>
 
   <div class="card"><div class="grid">
     <div><div class="sub">Current value (Zestimate)</div><b>${{ '{:,.0f}'.format(home_value) }}</b></div>
-    <div><div class="sub">Cost basis <span title="what you paid — the baseline the taxable gain is measured from">(purchase price — the baseline for taxing the gain)</span></div><b>${{ '{:,.0f}'.format(cost_basis) }}</b>
+    <div><div class="sub">Cost basis <span class="sub">(what you paid — baseline for the taxable gain)</span></div><b>${{ '{:,.0f}'.format(cost_basis) }}</b>
       {% if sells_at_loss %}<span class="pill">value below basis</span>{% else %}<span class="pill">value above basis</span>{% endif %}</div>
     <div><div class="sub">Mortgage balance</div><b>${{ '{:,.0f}'.format(mortgage_bal) }}</b></div>
     <div><div class="sub">Mortgage rate (derived)</div><b>{{ '%.3f'|format(apr*100) }}%</b></div>
   </div></div>
 
-  <!-- 1. NET WORTH -->
-  <h2>1. Net worth over time — fully-loaded comparison</h2>
-  <p class="sub">Total wealth each path produces at each horizon, on equal footing. The <b>Hold</b> figures
-  subtract the costs <i>and</i> taxes of selling at that future date, and treat the monthly cash fed into
-  the property the same way as the sell side's money (grown pre-tax, taxed once at the end). Two tax
-  treatments are shown for the future sale.
-  <br><span class="sub"><i>(In plain terms: money you put into the house is credited with the same market growth the
-  sold cash would have earned, so neither side gets a free head start.)</i></span></p>
+  <!-- ===== 1. THE MONEY ===== -->
+  <h2>1. The money — what each path is worth</h2>
+  <p class="sub">Total wealth each path leaves you with at each horizon, fully loaded (all costs and taxes on both sides).</p>
   <table>
     <thead><tr><th>Option (primary {{ '%g'|format(primary_appreciation*100) }}% appreciation)</th>{{ hz_head }}</tr></thead>
     <tbody>{{ headline_rows }}</tbody>
   </table>
-  <p class="legend">Net worth in dollars at each horizon, after all costs and taxes of the eventual sale.
-  "Full rental" = sold as a rental, no §121 exclusion. "Hold ≤3 yrs" keeps the full ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 exclusion
-  by selling before the 2-of-5-year residence test lapses (*so it only applies at ≤3 yrs). "Sell now + invest" proceeds are shown
-  after-tax (investment gains taxed at sale, symmetric with the home's taxed gain).</p>
+  <p class="legend">"Full rental" = sold as a rental (no §121 exclusion). "Hold ≤3 yrs" keeps the full
+  ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale exclusion (only available if sold within 3 yrs, before the 2-of-5-year
+  residence test lapses). "Sell now + invest" is shown after-tax, the same way the home's gain is taxed.</p>
 
-  <p class="sub" style="margin-top:14px">The tables below each stress-test <b>one</b> assumption — appreciation, rent growth,
-  or the investment rate — moving it alone while everything else stays at the base case. The base ("primary") row is
-  highlighted; compare the others to it. Where a table shows only Hold rows, the matching <b>Sell now</b> figures are in
-  the headline table above (selling is unaffected by how the house performs after you've sold).</p>
-
-  <h3>Break-even appreciation</h3>
-  <p class="sub">The home-appreciation rate at which holding ends up <b>exactly equal</b> to selling now and
-  investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate — what the money
-  would earn in the market instead). Above this
-  rate the hold's ending wealth exceeds the sell path's; below it, it falls short. For context, SF Case-Shiller history:
-  {{ '%g'|format(be_low_pct) }}% (20-yr) / {{ '%g'|format(be_mod_pct) }}% (10-yr) / {{ '%g'|format(be_high_pct) }}% (30-yr) CAGR.</p>
+  <h3>Break-even: how fast the house must grow</h3>
+  <p class="sub">The appreciation rate at which holding and selling end up <b>equal</b> at each horizon. Above it, holding ends
+  with more; below it, less. For context, SF Case-Shiller history is {{ '%g'|format(be_low_pct) }}% / {{ '%g'|format(be_mod_pct) }}% / {{ '%g'|format(be_high_pct) }}% per year (20/10/30-yr).</p>
+  <div class="card" style="margin:10px 0">
+    {{ be_chart_svg }}
+    <p class="legend" style="margin-top:8px">Hold wealth at {{ be_chart_horizon }} years as appreciation varies (blue) vs. the
+    sell-now figure (green, flat — it doesn't depend on how the house does after you've sold). They meet at the break-even rate;
+    dashed ticks are the SF history rates.</p>
+  </div>
   <table>
-    <thead><tr><th>Break-even (both sides at {{ '%g'|format(be_opp_pct) }}%)</th>{{ hz_head }}</tr></thead>
+    <thead><tr><th>Break-even appreciation (both sides earn {{ '%g'|format(be_opp_pct) }}% market return)</th>{{ hz_head }}</tr></thead>
     <tbody>{{ be_row }}</tbody>
   </table>
+  <p class="sub" style="margin-top:6px">The required rate <b>rises</b> with the horizon: selling now puts cash to work in the
+  market immediately, and that head start compounds — so the longer you hold, the faster the house must grow to keep pace.</p>
+  <details style="margin-top:8px">
+    <summary>Exact figures at each appreciation rate</summary>
+    <table style="margin-top:8px">
+      <thead><tr><th>If the home appreciates…</th>{{ hz_head }}</tr></thead>
+      <tbody>{{ appr_rows }}</tbody>
+    </table>
+  </details>
 
-  <div class="card" style="margin-top:12px">
-    {{ be_chart_svg }}
-    <p class="legend" style="margin-top:8px">Hold net worth at the {{ be_chart_horizon }}-year horizon as home appreciation
-    varies (blue), against the sell-now-and-invest figure (green), which doesn't depend on how the house performs after
-    you've sold. The lines meet at the break-even rate marked above; the dashed ticks are the SF Case-Shiller history rates
-    ({{ '%g'|format(be_low_pct) }} / {{ '%g'|format(be_mod_pct) }} / {{ '%g'|format(be_high_pct) }}%). Same data as the table
-    above, drawn.</p>
-  </div>
+  <h3>If our other assumptions are off</h3>
+  <p class="sub">Each table moves <b>one</b> assumption and holds the rest at the base case. Where only Hold rows are shown,
+  the matching Sell figures are in the table at the top (selling isn't affected by how the house performs after you've sold).</p>
 
-  <h3>Sensitivity to appreciation</h3>
-  <p class="sub">Hold at ${{ '{:g}'.format(primary_rent/1000) }}k rent (full rental) under three home-appreciation
-  rates. <b>"Appreciation" = how fast the house gains value per year.</b></p>
-  <table>
-    <thead><tr><th>If the home appreciates…</th>{{ hz_head }}</tr></thead>
-    <tbody>{{ appr_rows }}</tbody>
-  </table>
-
-  <h3>Sensitivity to rent growth</h3>
-  <p class="sub">The base case grows rent {{ '%g'|format(rg_low_pct) }}%/yr (recent SF ZORI), below the home's
-  {{ '%g'|format(primary_appreciation*100) }}% value growth; over long holds the two series have historically
-  drifted back toward each other. Hold (at ${{ '{:g}'.format(primary_rent/1000) }}k starting rent, central
-  appreciation) is shown at the base rate and at a rate matching home appreciation.</p>
+  <p class="sub" style="margin-top:10px"><b>Rent growth</b> — base case {{ '%g'|format(rg_low_pct) }}%/yr (recent SF history),
+  shown also at a rate matching home appreciation.</p>
   <table>
     <thead><tr><th>If rent grows…</th>{{ hz_head }}</tr></thead>
     <tbody>{{ rg_rows }}</tbody>
   </table>
 
-  <h3>Sensitivity to the investment / opportunity rate</h3>
-  <p class="sub">The investment rate is applied to <b>both</b> paths — the sold-and-invested proceeds, and the hold path's
-  cash drain &amp; reserve. Shown at each rate, central appreciation, ${{ '{:g}'.format(primary_rent/1000) }}k rent.
-  <br><span class="sub"><i>(In plain terms: the two paths put different amounts of money to work at this rate, so
-  raising it doesn't move them in lockstep.)</i></span></p>
+  <p class="sub" style="margin-top:10px"><b>Market return</b> — the rate money earns, applied to <b>both</b> paths (the sold
+  proceeds, and the cash the rental consumes). The two paths put different amounts to work, so a higher rate doesn't move them equally.</p>
   <table>
     <thead><tr><th>If money earns…</th>{{ hz_head }}</tr></thead>
     <tbody>{{ rate_rows }}</tbody>
   </table>
 
-  <h3>How a "Hold" number is built ({{ worked_horizon }}-yr, ${{ '{:g}'.format(primary_rent/1000) }}k rent, full rental)</h3>
-  <p class="sub">Every component of the ${{ '{:,.0f}'.format(we.net_worth) }} figure, so it's fully traceable:</p>
+  <!-- ===== 2. WHAT EACH PATH ASKS OF YOU ===== -->
+  <h2>2. What each path asks of you</h2>
+  <p class="sub">Beyond the dollars: what holding vs. selling actually involves. Stated as facts for each side, not advice.</p>
   <table>
-    <thead><tr><th>Component</th><th>Amount</th><th>What it is</th></tr></thead>
+    <thead><tr><th>Hold (keep &amp; rent)</th><th>Sell now</th></tr></thead>
     <tbody>
-      <tr><td>Future home value</td><td class="num-good">+{{ '{:,.0f}'.format(we.future_value) }}</td><td class="sub">${{ '%.3f'|format(home_value/1e6) }}M growing {{ '%g'|format(primary_appreciation*100) }}%/yr × {{ worked_horizon }}</td></tr>
-      <tr><td>− Remaining loan balance</td><td class="num-bad">−{{ '{:,.0f}'.format(we.remaining_loan) }}</td><td class="sub">still owed after {{ worked_horizon }} yrs of payments</td></tr>
-      <tr><td>− Selling costs at future sale</td><td class="num-bad">−{{ '{:,.0f}'.format(we.sale_costs) }}</td><td class="sub">~{{ '%.1f'|format(sale_cost_rate*100) }}% broker+transfer+title on the future price</td></tr>
-      <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
-      <tr><td>± Cash flow (compounded like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
-      <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
-      <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + NIIT 3.8% + CA 13.3% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
-      <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
-      <tr><td>− Reserve opportunity cost</td><td class="num-bad">−{{ '{:,.0f}'.format(we.reserve_opp_cost) }}</td><td class="sub">${{ '{:,.0f}'.format(cash_reserve) }} reserve in bonds vs. the market rate</td></tr>
-      <tr class="total"><td>= Net worth at {{ worked_horizon }} yrs</td><td><b>{{ '{:,.0f}'.format(we.net_worth) }}</b></td><td></td></tr>
-    </tbody>
-  </table>
-  <div class="callout">
-    <b>How the rental-tax pieces interact.</b> While renting, the property runs a <i>tax</i> loss each year
-    (rent minus operating costs, mortgage interest, and ~${{ '{:,.0f}'.format(annual_depreciation) }}/yr depreciation). At MAGI
-    &gt;${{ '{:g}'.format(passive_loss_magi_limit/1000) }}k those losses are suspended and <b>released at sale</b>, deducted at the
-    {{ '%.0f'|format(marginal_tax*100) }}% rate (+${{ '{:,.0f}'.format(we.deprec_release) }}). At sale the IRS also <b>recaptures</b> the depreciation at
-    {{ '%.1f'|format(deprec_recapture_rate*100) }}% (fed 25% + NIIT 3.8% + CA 13.3%) (−${{ '{:,.0f}'.format(we.recapture) }}). Net of the two: <b>{{ deprec_net }}</b>.
-    The two do not fully cancel: recapture accrues on every year of depreciation, while the released loss pool
-    is drawn down once the rental turns tax-positive in later years. None of this affects monthly cash flow;
-    it lands at sale. <i>Confirm the treatment with a CPA.</i>
-  </div>
-
-  <h3>How the "Sell today" number is built</h3>
-  <table>
-    <tbody>
-      <tr><td>Sale price (Zestimate)</td><td>${{ '{:,.0f}'.format(sell.price) }}</td><td class="sub"></td></tr>
-      <tr><td>− Broker commission ({{ '%g'|format(broker_rate*100) }}%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.broker) }}</td><td class="sub">listing + buyer agent</td></tr>
-      <tr><td>− SF transfer tax ({{ '%g'|format(transfer_tax*100) }}%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.transfer) }}</td><td class="sub">$1M–$5M band</td></tr>
-      <tr><td>− Title / escrow / misc ({{ '%g'|format(title_escrow*100) }}%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.title) }}</td><td class="sub">recording, escrow, etc.</td></tr>
-      <tr><td>− Mortgage payoff</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.payoff) }}</td><td class="sub">remaining balance</td></tr>
-      <tr class="total"><td>= Net cash proceeds</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_proceeds) }}</td><td></td></tr>
-      {% if sells_at_loss %}
-      <tr><td>Capital gain/loss</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.capital_gain|abs) }}</td><td class="sub">a loss: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis</td></tr>
-      <tr><td>Capital gains tax</td><td>${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">$0 — no tax on a loss</td></tr>
-      {% else %}
-      <tr><td>Capital gain/loss</td><td class="num-good">+{{ '{:,.0f}'.format(sell.capital_gain) }}</td><td class="sub">a gain: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis, less §{{ '{:g}'.format(cg_exclusion/1000) }}k exclusion if eligible</td></tr>
-      <tr><td>Capital gains tax</td><td class="num-bad">−${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on the taxable gain</td></tr>
-      {% endif %}
+      <tr>
+        <td>You become a landlord: tenants, repairs, turnover, management.</td>
+        <td>No property to manage; the money sits in a brokerage account.</td>
+      </tr>
+      <tr>
+        <td>Cash flow is negative — about −${{ '{:,.0f}'.format(-base_oop/12) }}/mo at ${{ '{:g}'.format(primary_rent/1000) }}k rent (detail below) — funded from savings.</td>
+        <td>No monthly drain; the invested proceeds can generate income instead.</td>
+      </tr>
+      <tr>
+        <td>A bad year (long vacancy, eviction, major repair) can cost much more (detail below). Reserve held: ${{ '{:,.0f}'.format(cash_reserve) }}.</td>
+        <td>No landlord tail risk; market risk applies to the invested proceeds.</td>
+      </tr>
+      <tr>
+        <td>~${{ '%.2f'|format(home_value/1e6) }}M stays concentrated in one leveraged property.</td>
+        <td>Proceeds are liquid and can be spread across a diversified portfolio.</td>
+      </tr>
+      <tr>
+        <td>Taxes on the gain are deferred to the future sale.</td>
+        <td>Taxes on the gain (if any) are paid now; see the build detail in §4.</td>
+      </tr>
+      <tr>
+        <td>AB 1482: an SF single-family home keeps its rent-cap exemption only if you serve the written exemption notice. Just-cause eviction rules apply, and a tenant-occupied home is generally harder to sell vacant.</td>
+        <td>None of the rental/eviction rules apply once sold.</td>
+      </tr>
     </tbody>
   </table>
 
-  <!-- 2. CASH FLOW -->
-  <h2>2. Monthly cash flow</h2>
-  <p class="sub">Real cash in/out of the bank account per year, at year-1 rent.</p>
+  <h3>What holding costs month to month</h3>
+  <p class="sub">Real cash in and out of the bank account per year, at year-1 rent.</p>
   <table>
     <thead><tr><th>Cash item</th>{{ oop_head }}</tr></thead>
     <tbody>
       <tr><td>Rent collected (net of vacancy)</td>{{ oop_rows[0] }}</tr>
-      <tr><td>Mortgage payment (P&amp;I)</td>{{ oop_rows[1] }}</tr>
-      <tr><td>Tax / insurance / repairs / mgmt</td>{{ oop_rows[2] }}</tr>
-      <tr><td>Depreciation refund <span class="pill">suspended</span></td>{{ oop_rows[3] }}</tr>
-      <tr class="total"><td>NET CASH FLOW / yr</td>{{ oop_net }}</tr>
+      <tr><td>Mortgage payment (principal &amp; interest)</td>{{ oop_rows[1] }}</tr>
+      <tr><td>Property tax</td>{{ opex_part_rows['prop_tax'] }}</tr>
+      <tr><td>Insurance</td>{{ opex_part_rows['insurance'] }}</tr>
+      <tr><td>Repairs / maintenance</td>{{ opex_part_rows['repairs'] }}</tr>
+      <tr><td>Management &amp; leasing</td>{{ opex_part_rows['mgmt'] }}</tr>
+      <tr><td>Yearly depreciation tax break <span class="pill">none — see §4</span></td>{{ oop_rows[3] }}</tr>
+      <tr class="total"><td>Net cash flow / yr</td>{{ oop_net }}</tr>
       <tr class="total"><td>…per month</td>{{ oop_mo }}</tr>
     </tbody>
   </table>
-  <p class="sub">For comparison, the sale proceeds invested would generate <b>${{ '{:,.0f}'.format(inc_lo/12) }}/mo</b>
-  (at 5%) to <b>${{ '{:,.0f}'.format(inc_hi/12) }}/mo</b> (at 7%) pre-tax, with no property cash flow.
-  Higher rent reduces the monthly drain (more rent against the same fixed mortgage).</p>
+  <p class="sub">For comparison, the sale proceeds invested would generate about <b>${{ '{:,.0f}'.format(inc_lo/12) }}/mo</b>
+  (at {{ '%g'|format(invest_lo*100) }}%) to <b>${{ '{:,.0f}'.format(inc_hi/12) }}/mo</b> (at {{ '%g'|format(invest_hi*100) }}%) pre-tax, with no property to fund.</p>
 
-  <!-- 3. RISK -->
-  <h2>3. Bad-year cash sensitivity</h2>
-  <p class="sub">Each row's "Total" already includes the −${{ '{:,.0f}'.format(-base_oop) }} baseline, so the rows are
-  <b>not</b> additive.</p>
+  <h3>What holding costs in a bad year</h3>
+  <p class="sub">A normal year already costs −${{ '{:,.0f}'.format(-base_oop) }} out of pocket. Each row adds one bad event to that
+  baseline — so the rows stand alone, they don't add together.</p>
   <table>
-    <thead><tr><th>Scenario (at ${{ '{:g}'.format(primary_rent/1000) }}k rent)</th><th>Extra hit</th><th>Total cash out</th></tr></thead>
+    <thead><tr><th>Scenario (at ${{ '{:g}'.format(primary_rent/1000) }}k rent)</th><th>Added cost this event</th><th>Whole-year cash out</th></tr></thead>
     <tbody>{{ risk_rows }}</tbody>
   </table>
-  <p class="legend">The "worst case" stacks all three events in one year. Each is individually low-probability
-  (see the bad-year probabilities in the assumptions table), so all three together is a deliberately
-  pessimistic tail. The major repair is shown net of its tax recovery (it's a capital improvement that adds
-  to basis). For reference: the reserve is ${{ '{:,.0f}'.format(cash_reserve) }}; the worst-case year totals
-  ~${{ '{:,.0f}'.format(-worst_total) }}; the reserve held in bonds vs. the market rate carries an opportunity
-  cost of ~${{ '{:,.0f}'.format(reserve_cost_yr) }}/yr.</p>
+  <p class="legend">The "worst case" stacks all three events in one year — each is individually uncommon (probabilities in §5),
+  so all three at once is a deliberately pessimistic tail. The major repair is shown net of its tax recovery (it adds to basis).
+  The worst-case year totals ~${{ '{:,.0f}'.format(-worst_total) }}, against the ${{ '{:,.0f}'.format(cash_reserve) }} reserve.</p>
 
-  <!-- 4. FACTS TO KNOW (non-financial, factual) -->
-  <h2>4. Facts to know if renting it out</h2>
-  <p class="sub">Legal/process facts that the dollar model does not capture. Stated as facts, not advice.</p>
+  <!-- ===== 3. OTHER FACTORS ===== -->
+  <h2>3. Other factors you might weigh</h2>
+  <p class="sub">Things people often ask about, with how much they change the picture.</p>
   <ul>
-    <li><b>AB 1482 rent cap exemption.</b> A single-family home is exempt from California's statewide rent cap
-      (Costa-Hawkins) only if the owner serves the required written exemption notice; without it the unit can
-      fall under the cap (5% + CPI). The rent-growth figures here assume market-rate growth.</li>
-    <li><b>Just-cause eviction.</b> An SF single-family rental is subject to just-cause eviction rules. A home
-      occupied by a tenant is generally harder to sell with vacant possession; selling vacant typically requires
-      timing a sale around a tenant move-out.</li>
-    <li><b>Concentration.</b> Holding keeps ~${{ '%.2f'|format(home_value/1e6) }}M of net worth in a single, leveraged asset;
-      selling and investing distributes it across a portfolio. The model prices neither the timing constraint
-      nor concentration.</li>
-    <li><b>Cited reference.</b> Tax and eviction details: <code>docs/sf-rental-tax-reference.md</code>.</li>
+    <li><b>Rent level.</b> Both rents are shown throughout (${{ '{:g}'.format(primary_rent/1000) }}k and the higher figure).
+      Across a ${{ '{:g}'.format(rent_lo/1000) }}k–${{ '{:g}'.format(rent_hi/1000) }}k range, the {{ longest_horizon }}-yr hold figure spans
+      ${{ '{:,.0f}'.format(rent_lo_nw) }} to ${{ '{:,.0f}'.format(rent_hi_nw) }}.</li>
+    <li><b>Cap-gains &amp; depreciation-recapture rates.</b> Applied symmetrically — they tax the home's gain and the sell side's
+      investment gain on the same footing. The component rates are in §5; the mechanics are in §4.</li>
   </ul>
 
-  <!-- 5. ASSUMPTIONS -->
+  <!-- ===== 4. SHOW YOUR WORK ===== -->
+  <h2>4. Show your work — how each number is built</h2>
+  <p class="sub">The full derivation behind the figures above, for anyone who wants to trace or check them.</p>
+
+  <details>
+    <summary>How a "Hold" number is built ({{ worked_horizon }}-yr, ${{ '{:g}'.format(primary_rent/1000) }}k rent, full rental) → ${{ '{:,.0f}'.format(we.net_worth) }}</summary>
+    <table style="margin-top:8px">
+      <thead><tr><th>Component</th><th>Amount</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td>Future home value</td><td class="num-good">+{{ '{:,.0f}'.format(we.future_value) }}</td><td class="sub">${{ '%.3f'|format(home_value/1e6) }}M growing {{ '%g'|format(primary_appreciation*100) }}%/yr × {{ worked_horizon }}</td></tr>
+        <tr><td>− Remaining loan balance</td><td class="num-bad">−{{ '{:,.0f}'.format(we.remaining_loan) }}</td><td class="sub">still owed after {{ worked_horizon }} yrs of payments</td></tr>
+        <tr><td>− Selling costs at future sale</td><td class="num-bad">−{{ '{:,.0f}'.format(we.sale_costs) }}</td><td class="sub">~{{ '%.1f'|format(sale_cost_rate*100) }}% broker+transfer+title on the future price</td></tr>
+        <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
+        <tr><td>± Cash flow (grown at the market return, like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
+        <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses, deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
+        <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + NIIT 3.8% + CA 13.3% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
+        <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
+        <tr><td>− Reserve opportunity cost</td><td class="num-bad">−{{ '{:,.0f}'.format(we.reserve_opp_cost) }}</td><td class="sub">${{ '{:,.0f}'.format(cash_reserve) }} reserve in bonds vs. the market return</td></tr>
+        <tr class="total"><td>= Net worth at {{ worked_horizon }} yrs</td><td><b>{{ '{:,.0f}'.format(we.net_worth) }}</b></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <b>How the rental-tax pieces interact.</b> While renting, the property runs a <i>tax</i> loss each year
+      (rent minus operating costs, mortgage interest, and ~${{ '{:,.0f}'.format(annual_depreciation) }}/yr depreciation). At income
+      &gt;${{ '{:g}'.format(passive_loss_magi_limit/1000) }}k those losses can't be deducted yearly — they're <b>suspended</b> and
+      <b>released at sale</b>, deducted at the {{ '%.0f'|format(marginal_tax*100) }}% rate (+${{ '{:,.0f}'.format(we.deprec_release) }}).
+      At sale the IRS also <b>recaptures</b> the depreciation at {{ '%.1f'|format(deprec_recapture_rate*100) }}%
+      (fed 25% + NIIT 3.8% + CA 13.3%) (−${{ '{:,.0f}'.format(we.recapture) }}). Net of the two: <b>{{ deprec_net }}</b>.
+      They don't fully cancel: recapture accrues on every year of depreciation, while the released loss pool is drawn down once the
+      rental turns tax-positive in later years. None of this affects monthly cash flow; it lands at sale. <i>Confirm with a CPA.</i>
+    </div>
+  </details>
+
+  <details>
+    <summary>How the "Sell today" number is built → ${{ '{:,.0f}'.format(sell.net_proceeds) }} net proceeds</summary>
+    <table style="margin-top:8px">
+      <tbody>
+        <tr><td>Sale price (Zestimate)</td><td>${{ '{:,.0f}'.format(sell.price) }}</td><td class="sub"></td></tr>
+        <tr><td>− Broker commission ({{ '%g'|format(broker_rate*100) }}%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.broker) }}</td><td class="sub">listing + buyer agent</td></tr>
+        <tr><td>− SF transfer tax ({{ '%g'|format(transfer_tax*100) }}%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.transfer) }}</td><td class="sub">$1M–$5M band</td></tr>
+        <tr><td>− Title / escrow / misc ({{ '%g'|format(title_escrow*100) }}%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.title) }}</td><td class="sub">recording, escrow, etc.</td></tr>
+        <tr><td>− Mortgage payoff</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.payoff) }}</td><td class="sub">remaining balance</td></tr>
+        <tr class="total"><td>= Net cash proceeds</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_proceeds) }}</td><td></td></tr>
+        {% if sells_at_loss %}
+        <tr><td>Capital gain/loss</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.capital_gain|abs) }}</td><td class="sub">a loss: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis</td></tr>
+        <tr><td>Capital gains tax</td><td>${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">$0 — no tax on a loss</td></tr>
+        {% else %}
+        <tr><td>Capital gain/loss</td><td class="num-good">+{{ '{:,.0f}'.format(sell.capital_gain) }}</td><td class="sub">a gain: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis, less §{{ '{:g}'.format(cg_exclusion/1000) }}k exclusion if eligible</td></tr>
+        <tr><td>Capital gains tax</td><td class="num-bad">−${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on the taxable gain</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </details>
+
+  <!-- ===== 5. ASSUMPTIONS ===== -->
   <h2>5. Every assumption, and where it came from</h2>
   <table>
     <thead><tr><th>Assumption</th><th>Value</th><th>Source / rationale</th></tr></thead>
@@ -202,12 +213,11 @@
   </table>
 
   <div class="foot">
-    <b>Simplifications.</b> Cap-gains and recapture rates are applied as flat effective rates (real brackets are
-    graduated and interact with other income). Both sides are
-    treated symmetrically and after-tax: the sold proceeds and the hold path's cash flow &amp; reserve all compound
-    at the pre-tax {{ '%.0f'|format(primary_invest*100) }}% rate with the gain taxed once at the end (the reserve at the bond rate).
-    Not modeled in dollars: inflation (figures are nominal), the time cost of landlording, the timing constraint
-    of selling a tenanted home, and concentration risk.
+    <b>Simplifications.</b> Cap-gains and recapture rates are applied as flat effective rates (real brackets are graduated and
+    interact with other income). Both sides are treated symmetrically and after-tax: the sold proceeds and the hold path's cash
+    flow &amp; reserve all compound at the pre-tax {{ '%.0f'|format(primary_invest*100) }}% market return with the gain taxed once at
+    the end (the reserve at the bond rate). Not modeled in dollars: inflation (figures are nominal), the time cost of landlording,
+    the timing constraint of selling a tenanted home, and concentration risk.
     <br><br>Auto-generated on {{ generated }}. Edit per-house inputs in <code>properties/*.toml</code>
     (or shared assumptions in <code>assumptions.py</code>) and re-run to refresh.
   </div>
