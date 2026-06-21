@@ -299,6 +299,32 @@ def build_context(m: Model) -> dict:
     be_chart_svg = _break_even_svg(computed["break_even_chart"])
     be_chart_horizon = computed["break_even_chart"]["horizon"]
 
+    # Server-rendered seed for the live horizon table, at the base-case slider defaults
+    # (PRIMARY_APPRECIATION / RENT_GROWTH / PRIMARY_INVEST). Identical layout to the JS
+    # buildHorizonTable so the static fallback (no-JS / print / first paint) matches what
+    # the slider shows. Numbers come from the model; render only arranges them.
+    be_tbl_head = "".join(f"<th>{y}-yr</th>" for y in H)
+    be_tbl_hold = "".join(
+        f"<td>{m.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION, opp_rate=PRIMARY_INVEST).net_worth:,.0f}</td>"
+        for y in H
+    )
+    be_tbl_sell = "".join(
+        f"<td>{m.invest_net_worth(sell.net_proceeds, y, PRIMARY_INVEST):,.0f}</td>" for y in H
+    )
+    be_tbl_gap = ""
+    for y in H:
+        d = m.hold_net_worth(
+            p.primary_rent, y, PRIMARY_APPRECIATION, opp_rate=PRIMARY_INVEST
+        ).net_worth - m.invest_net_worth(sell.net_proceeds, y, PRIMARY_INVEST)
+        sign = "+" if d >= 0 else "−"
+        be_tbl_gap += f"<td>{sign}{abs(d):,.0f}</td>"
+    be_table_seed = (
+        f"<thead><tr><th>At your assumptions</th>{be_tbl_head}</tr></thead>"
+        f'<tbody><tr class="primary"><td>Hold (keep &amp; rent)</td>{be_tbl_hold}</tr>'
+        f'<tr class="sell"><td>Sell now + invest</td>{be_tbl_sell}</tr>'
+        f'<tr class="total"><td>Hold − Sell</td>{be_tbl_gap}</tr></tbody>'
+    )
+
     # Worked example
     we = m.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
 
@@ -563,6 +589,7 @@ def build_context(m: Model) -> dict:
         "be_high_pct": be_high_pct,
         "be_chart_svg": M(be_chart_svg),
         "be_chart_horizon": be_chart_horizon,
+        "be_table_seed": M(be_table_seed),
         # Interactive explorer: PARAMS/CHART are pre-serialized JSON (safe to mark Markup
         # for inline <script>); model_js is the inlined engine. Slider defaults/ranges.
         "params_json": M(params_json),

@@ -424,6 +424,41 @@ if (typeof document !== "undefined") {
     );
   }
 
+  // Live table: Hold and Sell net worth at each reported horizon, at the current slider
+  // values, plus their gap. Figures only (Rule 2) — the gap is a signed magnitude with no
+  // good/bad coloring, since "which side is larger" is not a verdict this report makes.
+  function buildHorizonTable(appr, rentGrowth, marketRate) {
+    const horizons = P.horizons;
+    const head = horizons.map((y) => `<th>${y}-yr</th>`).join("");
+    const holdCells = horizons
+      .map((y) => {
+        const v = holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
+        return `<td>${fmtDollars(v)}</td>`;
+      })
+      .join("");
+    const sellCells = horizons
+      .map((y) => `<td>${fmtDollars(investNetWorth(P, calcSell(P).netProceeds, y, marketRate))}</td>`)
+      .join("");
+    const gapCells = horizons
+      .map((y) => {
+        const h = holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
+        const s = investNetWorth(P, calcSell(P).netProceeds, y, marketRate);
+        const d = h - s;
+        // signed magnitude, neutral: "+" = Hold larger, "−" = Sell larger (a label, not a judgment)
+        const sign = d >= 0 ? "+" : "−";
+        return `<td>${sign}$${Math.abs(Math.round(d)).toLocaleString("en-US")}</td>`;
+      })
+      .join("");
+    return (
+      `<thead><tr><th>At your assumptions</th>${head}</tr></thead>` +
+      `<tbody>` +
+      `<tr class="primary"><td>Hold (keep &amp; rent)</td>${holdCells}</tr>` +
+      `<tr class="sell"><td>Sell now + invest</td>${sellCells}</tr>` +
+      `<tr class="total"><td>Hold − Sell</td>${gapCells}</tr>` +
+      `</tbody>`
+    );
+  }
+
   function redraw() {
     const appr = +document.getElementById("slider-appr").value / 100;
     const rentGrowth = +document.getElementById("slider-rent").value / 100;
@@ -433,6 +468,8 @@ if (typeof document !== "undefined") {
     document.getElementById("val-rent").textContent = (rentGrowth * 100).toFixed(1).replace(/\.0$/, "") + "%";
     document.getElementById("val-market").textContent = (marketRate * 100).toFixed(1).replace(/\.0$/, "") + "%";
 
+    const tbl = document.getElementById("be-table-live");
+    if (tbl) tbl.innerHTML = buildHorizonTable(appr, rentGrowth, marketRate);
     document.getElementById("be-chart-live").innerHTML = buildSvg(appr, rentGrowth, marketRate);
     document.getElementById("be-readout").innerHTML = buildReadout(appr, rentGrowth, marketRate);
   }

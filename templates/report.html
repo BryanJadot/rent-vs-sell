@@ -61,11 +61,17 @@
       <label>Rent growth <span class="slider-val" id="val-rent">{{ '%g'|format(slider_rent_default) }}%</span>
         <input type="range" id="slider-rent" min="1" max="6" step="0.1" value="{{ slider_rent_default }}"></label>
       <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
-        <input type="range" id="slider-market" min="4" max="8" step="0.1" value="{{ slider_market_default }}"></label>
+        <input type="range" id="slider-market" min="4" max="10" step="0.1" value="{{ slider_market_default }}"></label>
     </div>
 
-    <noscript><p class="legend" style="margin:8px 0 0"><b>Interactive controls need JavaScript.</b> The chart below and the tables
-    further down show the same data at fixed assumption points.</p></noscript>
+    <noscript><p class="legend" style="margin:8px 0 0"><b>Interactive controls need JavaScript.</b> The table and chart below
+    (and the tables further down) show the same data at fixed assumption points.</p></noscript>
+
+    <!-- Live table (JS swaps its contents). Seeded server-side at the base case so it shows
+         before JS runs, when JS is off, and in print. -->
+    <table id="be-table-live">{{ be_table_seed }}</table>
+    <p class="legend" style="margin:0 0 10px">Total wealth each path leaves you with at each horizon, at the assumptions set above.
+    "Hold − Sell" is the difference (＋ means the Hold figure is larger, − means Sell).</p>
 
     <!-- Live chart (JS swaps its contents). Seeded with the server-rendered SVG so it
          shows before JS runs, when JS is off, and in print. -->
