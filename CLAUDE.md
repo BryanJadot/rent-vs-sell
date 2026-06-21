@@ -100,6 +100,31 @@ render.py           presentation: builds HTML (templates/) + text from the model
      inputs (and must stay free of interpretation per rule 2). The golden snapshot guards
      the *numbers*; only your eyes guard the *words*.
 
+8. **Density vs. fidelity: relocate, don't trade.** The report serves two reader
+   questions, and a given element answers only one: *"What's going on?"* (the reader is
+   forming a picture — the enemy is density) and *"Can I trust / defend this number?"*
+   (the reader is verifying — the enemy is omission). Don't lower fidelity to gain
+   clarity; move the fidelity to where the verifying reader looks for it. Apply this test
+   to every sentence, row, and section, in order:
+   1. **Does this detail change the reader's *picture* of the answer?** If yes → it
+      belongs in the readable layer, stated plainly (e.g. "holding pays off only if the
+      house beats ~4.3%/yr").
+   2. **If it doesn't change the picture, does removing it make a stated number *wrong or
+      unverifiable*?** If yes → keep it, but **demote** it to a footnote, the "how it's
+      built" table, or the assumptions table — don't delete (e.g. "recapture carries NIIT
+      and is capped at recognized gain" doesn't change the spouse's picture but you can't
+      defend the recapture figure without it).
+   3. **Neither?** → cut it. It's bloat. (This is the only blade against length; demoting
+      everything downward keeps the report faithful but never shorter, so wield step 3
+      deliberately.)
+   The result is **progressive disclosure**: a readable picture-layer on top of a
+   faithful verify-layer — not a style choice, just what the rule produces. For the rare
+   element that genuinely *can't* be relocated (the only honest statement is itself hard,
+   e.g. symmetric pre-tax-compound-then-tax-once), **state the faithful version, then
+   append a one-clause plain gloss** ("…(in plain terms: …)") — the precise reader stops
+   at the first clause, the layperson reads the gloss. You pay a few words, never
+   accuracy. Still bound by rule 2: a plain gloss explains *mechanics*, never verdict.
+
 ## When you add a new input/knob
 
 1. Add the field to the `Property` dataclass (`assumptions.py`) if per-house, else add
