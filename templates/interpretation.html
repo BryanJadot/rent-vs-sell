@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Rent vs. Sell — Interpretation — 15 Harold Ave{% endblock %}
+{% block title %}Rent vs. Sell — Interpretation — {{ address }}{% endblock %}
 {% block body %}
   <h1>Rent vs. Sell — Interpretation &amp; Next Steps</h1>
   <p class="sub">{{ address }} · companion to the data report · generated {{ generated }}</p>
@@ -9,7 +9,7 @@
   <div class="callout">
     <b>The decision in one line.</b> Selling nets you <b>~${{ '{:,.0f}'.format(sell.net_proceeds) }} cash today</b> with zero
     tax (you're selling at a paper loss). Holding costs you <b>~${{ '{:,.0f}'.format(mo_oop) }}/month out of pocket</b>
-    at $5k rent. After fully accounting for the taxes and costs of the <i>future</i> sale,
+    at ${{ '{:g}'.format(primary_rent/1000) }}k rent. After fully accounting for the taxes and costs of the <i>future</i> sale,
     {{ headline_verdict }}.
   </div>
 
@@ -38,15 +38,33 @@
     reserve sitting in cash already forgoes ~${{ '{:,.0f}'.format(reserve_cost_yr) }}/yr of after-tax returns; a bigger buffer
     to cover a worst-case year would forgo proportionally more. The reserve isn't free.</div>
   <div class="q"><b>3. Do I believe SF will appreciate enough for the whole hold?</b> The hold case rests on
-    it. In the pessimistic 2.5% case the data report shows holding {{ verb_low_long }} selling — you'd have spent
+    it. In the pessimistic {{ '%g'|format(appreciation_low*100) }}% case the data report shows holding {{ verb_low_long }} selling — you'd have spent
     ~${{ '{:,.0f}'.format(cum_oop_10) }}+ of cash flow to get there. You're paying monthly to keep a leveraged bet on SF real estate.</div>
   <div class="q"><b>4. Which mistake would I regret more?</b> Sell and watch SF surge — or hold, hit a bad
     year with a thin reserve, and be forced to sell at a bad time?</div>
-  <div class="q"><b>5. Is there a middle path?</b> Hold 2–3 years to see if value recovers above your
-    $1.55M basis; or plan to move back in before selling to reclaim part of the §121 exclusion (the
+  <div class="q"><b>5. Is there a middle path?</b> Hold {{ sell_soon_max_years }} years or so to see if value recovers above your
+    ${{ '%.2f'|format(cost_basis/1e6) }}M basis; or plan to move back in before selling to reclaim part of the §121 exclusion (the
     "move back" row in the data report shows it materially cuts the future tax).</div>
   <div class="q"><b>6. Do I even want to be a landlord?</b> Even with a property manager — is this how you
     want to spend any mental energy?</div>
+
+  <h2>If you rent it out — two things to do (not in the math)</h2>
+  <div class="callout">
+    <b>Serve the AB 1482 written exemption notice.</b> A single-family home is exempt from the
+    statewide rent cap (Costa-Hawkins) — but only if you serve the required written notice. Without it
+    the unit can fall under the cap (5% + CPI). The model assumes market-rate rent growth, which
+    presumes the exemption is preserved.
+  </div>
+  <div class="callout bad">
+    <b>Plan to sell vacant — and know the model can't price two things.</b> An SF single-family rental is
+    subject to just-cause eviction; a tenanted home is harder to sell with vacant possession and tends to
+    fetch less. The realistic plan is to <b>time a sale around a tenant move-out and sell the house empty</b>,
+    which sidesteps most of that — but it does mean your exit isn't fully on your schedule. Two costs of
+    holding the model leaves out (no honest dollar figure exists for either): (1) that reduced timing
+    flexibility, and (2) <b>concentration</b> — holding keeps ~${{ '%.2f'|format(home_value/1e6) }}M of leveraged net worth in one
+    house, whereas selling and investing spreads it out. See <code>docs/sf-rental-tax-reference.md</code>
+    for the cited tax/eviction details.
+  </div>
 
   <h2>Next steps</h2>
   <div class="step"><div class="n">1</div><div><b>Talk to a CPA.</b> Confirm the passive-loss suspension,
@@ -54,11 +72,11 @@
     rental, and whether the "move back in" §121 strategy is worth it. This is where the tax numbers get
     pinned down — they're the biggest swing factor.</div></div>
   <div class="step"><div class="n">2</div><div><b>Talk to a property manager.</b> Get real local numbers:
-    actual fee, realistic rent for <i>your</i> home, typical vacancy/turnover in Ingleside, and how SF rent
-    control / just-cause eviction apply. This pins down the two softest inputs — rent and risk.</div></div>
-  <div class="step"><div class="n">3</div><div><b>Re-run the model</b> (edit the inputs in
-    <code>assumptions.py</code> and run <code>make report</code>) with their numbers; both pages
-    regenerate automatically.</div></div>
+    actual fee, realistic rent for <i>your</i> home, typical vacancy/turnover in your neighborhood, and how SF
+    rent control / just-cause eviction apply. This pins down the two softest inputs — rent and risk.</div></div>
+  <div class="step"><div class="n">3</div><div><b>Re-run the model</b> (edit the per-house inputs in
+    <code>properties/harold-ave.toml</code>, or shared assumptions in <code>assumptions.py</code>, then
+    run <code>make report</code>) with their numbers; both pages regenerate automatically.</div></div>
 
   <div class="foot">
     Verdict sentences on this page are generated from the same computations as

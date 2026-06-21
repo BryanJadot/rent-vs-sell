@@ -9,6 +9,7 @@ as_of_date = "2026-01-01"
 
 home_value    = 1_200_000      # ABOVE basis → taxable gain on sale
 cost_basis    = 800_000        # bought cheap
+building_basis = 480_000       # depreciable building (60% of cost) — synthetic
 mortgage_bal  = 200_000        # small loan → low P&I
 monthly_pi    = 1_200.00
 payments_left = 240

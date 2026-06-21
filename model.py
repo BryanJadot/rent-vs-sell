@@ -34,7 +34,6 @@ from assumptions import (
     TENANCY_YEARS,
     LEASING_FEE_MONTHS,
     RENT_GROWTH,
-    BUILDING_PCT,
     DEPREC_YEARS,
     MARGINAL_TAX,
     DEPREC_RECAPTURE_RATE,
@@ -92,7 +91,6 @@ class Rent:
     noi: float
     annual_pi: float
     cash_flow: float
-    principal_paydown: float
 
 
 @dataclass
@@ -215,6 +213,11 @@ def tax_at_sale(
     deprec_release = suspended_loss * MARGINAL_TAX
     excluded = excluded_gain(treatment, appreciation_gain, years, years_owned_as_residence)
     taxable_gain = max(0.0, appreciation_gain - excluded)
+    # CAP_GAINS_RATE bundles NIIT (3.8%). Applying it to the POST-exclusion gain is
+    # correct, NOT a bug: §121-excluded gain is excluded from gross income, and NIIT
+    # only reaches net investment income that IS in gross income — so the excluded slice
+    # rightly escapes NIIT too. (Depreciation recapture is separate above and is never
+    # §121-excludable, which the code already respects.)
     cap_gains_tax = taxable_gain * CAP_GAINS_RATE
     return SaleTax(recapture, deprec_release, cap_gains_tax, excluded)
 
@@ -224,24 +227,47 @@ class Model:
     shared market/tax assumptions are module-level imports. Derived per-property
     values (mortgage rate, depreciation, expected risk drag) are computed once here."""
 
-    def __init__(self, prop: Property):
+    def __init__(self, prop: Property, rent_growth: float = RENT_GROWTH):
         self.p = prop
+        # Rent-growth rate is an instance attribute (defaults to the shared assumption)
+        # so a sensitivity can build a second Model at a different rate without mutating
+        # globals — see compute()'s rent_growth_sensitivity.
+        self.rent_growth = rent_growth
         # Derived mortgage figures
         self.monthly_rate = _derive_monthly_rate(
             prop.mortgage_bal, prop.monthly_pi, prop.payments_left
         )
         self.apr = self.monthly_rate * MONTHS_PER_YEAR
-        # Derived depreciation
-        self.annual_depreciation = (prop.cost_basis * BUILDING_PCT) / DEPREC_YEARS
+        # Derived depreciation: straight-line over 27.5 yrs on the building only (land
+        # is not depreciable). `building_basis` is set per-property as the lower of cost
+        # or FMV at conversion (IRC §168(i)(5)) times the land/building split from a
+        # credible appraisal — see the property TOML. NOTE on precision: depreciation has
+        # two opposing tax effects at sale — it's recaptured at DEPREC_RECAPTURE_RATE
+        # (~38%) AND it creates suspended losses released at MARGINAL_TAX (~40%). These
+        # only PARTIALLY offset: recapture grows with all accumulated depreciation, while
+        # the suspended-loss pool plateaus/shrinks once the rental turns tax-positive in
+        # later years (interest-only deductibility). So the net is a real cost at long
+        # holds, not a wash — building_basis precision matters more than "they cancel."
+        self.annual_depreciation = prop.building_basis / DEPREC_YEARS
         self.annual_deprec_shield = (
             self.annual_depreciation * MARGINAL_TAX if PASSIVE_LOSS_USABLE_YEARLY else 0.0
         )
+        # A major repair (roof/foundation/sewer lateral) is a CAPITAL IMPROVEMENT, not a
+        # deductible expense: it's added to basis, so it reduces the taxable gain at sale.
+        # Its NET economic cost is therefore the cash outlay less the basis-driven tax
+        # recovery ≈ MAJOR_REPAIR × (1 − CAP_GAINS_RATE). (Depreciation taken on the
+        # improvement during the hold is itself recaptured at sale, so it roughly washes
+        # and isn't modeled separately.) Simplification, but far closer than expensing the
+        # full $40k. Eviction costs and lost rent ARE ordinary deductible expenses, but for
+        # a high-MAGI owner those losses are suspended (see suspended_operating_losses),
+        # so they're carried here at full cash cost.
+        self.net_major_repair = MAJOR_REPAIR * (1 - CAP_GAINS_RATE)
         # Expected annual risk drag (vacancy term counts only EXCESS beyond baseline)
         self.excess_vacancy_months = BAD_VACANCY_MONTHS - MONTHS_PER_YEAR * VACANCY_RATE
         self.expected_risk_drag = (
             RISK_VACANCY_PROB * (self.excess_vacancy_months * prop.primary_rent)
             + RISK_EVICTION_PROB * EVICTION_COST
-            + RISK_REPAIR_PROB * MAJOR_REPAIR
+            + RISK_REPAIR_PROB * self.net_major_repair
         )
 
     # ── Mortgage ──────────────────────────────────────────────────────────────
@@ -313,7 +339,6 @@ class Model:
         noi = egi - op
         annual_pi = p.monthly_pi * MONTHS_PER_YEAR
         cash_flow = noi - annual_pi
-        yr1_principal, _ = self.principal_paid_over(1)
         return Rent(
             monthly_rent,
             gross,
@@ -326,7 +351,6 @@ class Model:
             noi,
             annual_pi,
             cash_flow,
-            yr1_principal,
         )
 
     def oop_breakdown(self, monthly_rent: float) -> OopBreakdown:
@@ -340,40 +364,76 @@ class Model:
         return OopBreakdown(rent_in, mortgage_out, opex_out, tax_back, net)
 
     # ── Multi-year hold ────────────────────────────────────────────────────────
-    def compounded_cash_flow(self, monthly_rent: float, years: int, opp_rate: float) -> float:
-        """FV at horizon of each year's cash flow (rent grows, expenses inflate,
-        risk drag subtracted), carried forward at the after-tax `opp_rate`."""
+    def _year_cash_flow(self, monthly_rent: float, year_index: int) -> float:
+        """One year's ECONOMIC cash flow for the hold path (the money the property
+        actually puts in / takes out of your pocket that year). Single definition,
+        consumed by compounded_cash_flow and by the out-of-pocket figures in compute()
+        so they can never drift apart. Sign: a drain is negative.
+
+          = rental cash flow (NOI − full P&I; usually negative)
+            + annual depreciation tax shield (0 here — passive losses are suspended)
+            − expected risk drag (probability-weighted vacancy/eviction/repair cost)
+
+        `year_index` inflates rent (RENT_GROWTH) and fixed costs (in calc_rent).
+        """
+        rent_this_yr = monthly_rent * (1 + self.rent_growth) ** year_index
+        return (
+            self.calc_rent(rent_this_yr, year_index=year_index).cash_flow
+            + self.annual_deprec_shield
+            - self.expected_risk_drag
+        )
+
+    def compounded_cash_flow(self, monthly_rent: float, years: int, pretax_rate: float) -> float:
+        """FV at the horizon of every year's hold cash flow, carried forward the SAME
+        way the SELL path's proceeds are: grown at the PRE-TAX `pretax_rate`, with only
+        the investment GAIN taxed once at liquidation (CAP_GAINS_RATE).
+
+        Why pre-tax-grow-then-tax-the-gain instead of a flat after-tax rate: the SELL
+        side (invest_net_worth) gets tax-DEFERRED compounding — its money grows untaxed
+        and is taxed once at the end. To compare apples-to-apples, the money you instead
+        feed the property each year must be charged that same opportunity: had you not
+        spent it, it would have compounded pre-tax and been taxed once. A flat annual
+        after-tax rate would tax it every year and understate the true opportunity cost,
+        unfairly favoring HOLD. The transform below is algebraically identical to
+        invest_net_worth's (verified), so both sides use one investment rule.
+
+        Works for negative cash flow (a drain): only the gain portion is taxed, so an
+        outflow is carried forward as outflow + after-tax forgone growth.
+        """
         fv = 0.0
         for yr in range(years):
-            rent_this_yr = monthly_rent * (1 + RENT_GROWTH) ** yr
-            cf = (
-                self.calc_rent(rent_this_yr, year_index=yr).cash_flow
-                + self.annual_deprec_shield
-                - self.expected_risk_drag
-            )
-            fv += cf * (1 + opp_rate) ** (years - yr - 1)
+            cf = self._year_cash_flow(monthly_rent, yr)
+            growth = (1 + pretax_rate) ** (years - yr - 1)
+            fv += cf * (1 + (growth - 1) * (1 - CAP_GAINS_RATE))
         return fv
 
     def suspended_operating_losses(self, monthly_rent: float, years: int) -> float:
-        """Sum of yearly rental TAX losses (rent − op-ex − mortgage INTEREST −
-        depreciation), suspended under high MAGI and released at sale. Positive
-        number; $0 if passive losses are usable yearly.
+        """The suspended passive-loss CARRYFORWARD pool released at sale (§469).
+        Positive number; $0 if passive losses are usable yearly.
 
-        Only mortgage INTEREST is deductible (not principal), so we take the per-year
-        interest from the shared amortization schedule rather than the full payment.
+        Each year's rental tax result = rent − op-ex − mortgage INTEREST − depreciation
+        (only INTEREST is deductible, not principal — so we pull per-year interest from
+        the shared amortization schedule). Under high MAGI the annual loss can't offset
+        wages; it's suspended and carried forward.
+
+        §469 mechanic: the carryforward is a running POOL — loss years add to it, and
+        later PROFITABLE years draw it back down (passive income absorbs prior suspended
+        losses), floored at 0. Only what survives to the sale is released. (Summing loss
+        years alone would ignore that profitable later years consume the pool, overstating
+        the release benefit — ~$30k at 20yr for this property.)
         """
         if PASSIVE_LOSS_USABLE_YEARLY:
             return 0.0
-        total_loss = 0.0
+        pool = 0.0
         schedule = self.amortization_schedule(years)
         for yr in range(years):
             interest_yr = schedule[yr][0]
-            rent_this_yr = monthly_rent * (1 + RENT_GROWTH) ** yr
+            rent_this_yr = monthly_rent * (1 + self.rent_growth) ** yr
             r = self.calc_rent(rent_this_yr, year_index=yr)
             taxable_income = r.egi - r.op_expenses - interest_yr - self.annual_depreciation
-            if taxable_income < 0:
-                total_loss += -taxable_income
-        return total_loss
+            # Negative income grows the pool; positive income (passive) draws it down.
+            pool = max(0.0, pool - taxable_income)
+        return pool
 
     def hold_net_worth(
         self,
@@ -395,8 +455,10 @@ class Model:
           = net_worth
 
         `sec121` selects the future-sale §121 treatment (see the Sec121 enum).
-        `opp_rate` is the PRE-tax investment rate; the hold side is charged its
-        AFTER-tax version (see below) so both sides are compared net of tax.
+        `opp_rate` is the PRE-tax investment rate. Both the cash drain and the idle
+        reserve are charged the SAME investment rule as the SELL side: grow pre-tax,
+        tax the gain once at liquidation (see compounded_cash_flow) — so the two sides
+        are genuinely symmetric, not one taxed annually and the other taxed once.
         """
         p = self.p
 
@@ -408,12 +470,10 @@ class Model:
         sale_costs = future_value * SALE_COST_RATE
         gross_equity = future_value - remaining - sale_costs
 
-        # Cash flow is money you feed the property; it can't also be invested, so it's
-        # charged the AFTER-TAX opportunity cost. We use after-tax (not the raw 7%)
-        # because the SELL side IS taxed on its investment gains — charging the hold
-        # side a pre-tax rate would unfairly penalize it. Symmetric treatment.
-        aftertax_rate = opp_rate * (1 - CAP_GAINS_RATE)
-        cash_fv = self.compounded_cash_flow(monthly_rent, years, aftertax_rate)
+        # Cash flow is money you feed the property; it can't also be invested. It's
+        # charged the SELL side's opportunity rule (grow pre-tax at opp_rate, tax the
+        # gain once) — see compounded_cash_flow for why this, not a flat after-tax rate.
+        cash_fv = self.compounded_cash_flow(monthly_rent, years, opp_rate)
 
         # Taxes triggered at the sale (recapture, released suspended losses, cap gains).
         # Depreciation stops accruing after the 27.5-yr schedule ends, hence the min().
@@ -430,8 +490,9 @@ class Model:
         )
 
         # The reserve sits in cash the whole hold instead of compounding — count the
-        # forgone (after-tax) growth as a real cost of choosing to hold.
-        reserve_opp_cost = p.cash_reserve * ((1 + aftertax_rate) ** years - 1)
+        # forgone growth as a real cost of holding, on the same grow-pre-tax-tax-the-
+        # gain-once basis as everything else (only the gain is taxed, hence ×(1−CG)).
+        reserve_opp_cost = p.cash_reserve * ((1 + opp_rate) ** years - 1) * (1 - CAP_GAINS_RATE)
 
         net_worth = (
             gross_equity
@@ -469,6 +530,16 @@ class Model:
 
     # ── Compute: bundle everything into a plain dict ───────────────────────────
     def compute(self) -> dict:
+        """Bundle every computed result into one plain dict — the contract render.py
+        consumes, and (dumped to output/model_output.json) a standalone AUDIT artifact.
+
+        Note on scope: render.py reads the headline figures and the ["verdict"] block;
+        the full grids below (hold_grid across every §121 treatment × appreciation ×
+        rent, sell_grid, rent_rows) are produced deliberately for the audit JSON and the
+        golden-snapshot test — they let a CPA inspect/diff every cell even though the
+        report shows only a slice. They are intentional, not dead code; keep them in sync
+        with the snapshot (run `make snapshot` after an intended numeric change).
+        """
         p = self.p
         sell = self.calc_sell()
         np_ = sell.net_proceeds
@@ -504,6 +575,30 @@ class Model:
         }
         best_sell_by_h = {y: self.best_sell(y) for y in H}
 
+        # Rent-growth sensitivity: rent growth is the single largest swing factor in the
+        # hold case, and the base 3% (recent SF ZORI) sits well below the 4.85% home
+        # appreciation. Rather than pick one, show the hold outcome (primary rent, central
+        # appreciation) at BOTH the base rate and a "rent tracks home value" rate so the
+        # reader sees the range. The high-rate Model reuses the same property; only
+        # rent_growth differs (no global mutation).
+        rg_low = RENT_GROWTH
+        rg_high = PRIMARY_APPRECIATION  # rent grows as fast as the house ("they re-couple")
+        m_high_rg = Model(p, rent_growth=rg_high)
+        rent_growth_sensitivity = {
+            "rg_low": rg_low,
+            "rg_high": rg_high,
+            "rows": {
+                y: {
+                    "low": self.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION).net_worth,
+                    "high": m_high_rg.hold_net_worth(
+                        p.primary_rent, y, PRIMARY_APPRECIATION
+                    ).net_worth,
+                    "best_sell": self.best_sell(y),
+                }
+                for y in H
+            },
+        }
+
         we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
 
         h10 = self.hold_net_worth(p.primary_rent, 10, PRIMARY_APPRECIATION).net_worth
@@ -523,32 +618,26 @@ class Model:
         total_cells = len(p.realistic_rents) * len(H)
 
         weh = WORKED_EXAMPLE_HORIZON
-        cum_oop_10 = sum(
-            -(
-                self.calc_rent(p.primary_rent * (1 + RENT_GROWTH) ** yr, year_index=yr).cash_flow
-                + self.annual_deprec_shield
-                - self.expected_risk_drag
-            )
-            for yr in range(weh)
-        )
+        cum_oop_10 = sum(-self._year_cash_flow(p.primary_rent, yr) for yr in range(weh))
         yr1_oop = -self.oop_breakdown(p.primary_rent).net
-        yr10_oop = -(
-            self.calc_rent(
-                p.primary_rent * (1 + RENT_GROWTH) ** (weh - 1), year_index=weh - 1
-            ).cash_flow
-            + self.annual_deprec_shield
-            - self.expected_risk_drag
-        )
+        yr10_oop = -self._year_cash_flow(p.primary_rent, weh - 1)
 
+        # Worst-case year = baseline OOP plus all three bad events at once. NOTE these are
+        # independent and individually unlikely (probabilities in assumptions.py), so all
+        # three landing in one year is a deliberately pessimistic tail, not a typical bad
+        # year — the `worst_case_is_compound` flag lets render say so. The major repair is
+        # carried at its NET (post-tax-recovery) cost, consistent with expected_risk_drag.
         base = self.oop_breakdown(p.primary_rent).net
-        worst_extra = BAD_VACANCY_MONTHS * p.primary_rent + EVICTION_COST + MAJOR_REPAIR
+        worst_extra = BAD_VACANCY_MONTHS * p.primary_rent + EVICTION_COST + self.net_major_repair
         risk = {
             "baseline": base,
             "extra_vacancy": -BAD_VACANCY_MONTHS * p.primary_rent,
             "eviction": -EVICTION_COST,
-            "major_repair": -MAJOR_REPAIR,
+            "major_repair": -self.net_major_repair,
+            "major_repair_gross": -MAJOR_REPAIR,
             "worst_extra": -worst_extra,
             "worst_total": base - worst_extra,
+            "worst_case_is_compound": True,
         }
 
         return {
@@ -596,6 +685,7 @@ class Model:
             "hold_grid": hold_grid,
             "sell_grid": sell_grid,
             "best_sell_by_horizon": best_sell_by_h,
+            "rent_growth_sensitivity": rent_growth_sensitivity,
             "worked_example": asdict(we),
             "risk": risk,
             "verdict": {

@@ -12,6 +12,13 @@ as_of_date = "2026-06-21"
 # ── Property & loan ───────────────────────────────────────────────────────────
 home_value    = 1_495_200      # current Zillow Zestimate
 cost_basis    = 1_550_000      # purchase price (here: Nov 2021) — basis for gain/loss
+building_basis = 538_000       # depreciable building (land is NOT depreciable).
+                               #   = lower-of-cost-or-FMV at conversion × land/building ratio.
+                               #   Ratio from the 2021 PURCHASE APPRAISAL ($1.56M, land $1.0M
+                               #   → building ~36%), NOT the county assessment (negotiated/
+                               #   sandbagged down, so its total & split are unreliable). FMV
+                               #   today ($1,495,200) < cost, so FMV governs: 1_495_200 × 0.36
+                               #   ≈ 538,000 (rounded). Finalize with a dated appraisal/CMA at conversion.
 mortgage_bal  = 1_102_902.48   # remaining principal
 monthly_pi    = 4_739.86       # mortgage payment (principal + interest)
 payments_left = 306            # months remaining on the loan

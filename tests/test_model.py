@@ -124,6 +124,50 @@ def test_suspended_losses_zero_when_usable_yearly(m, monkeypatch):
     assert m.suspended_operating_losses(m.p.primary_rent, 10) == 0.0
 
 
+def test_suspended_losses_pool_is_drawn_down_by_profitable_years(m):
+    """§469: the carryforward pool must NET later profitable years, not just sum losses.
+    Over a long enough hold the rental turns tax-positive (rent grows, interest shrinks),
+    so the released pool at 20yr must be <= the pool at the point it peaks. Concretely it
+    should be strictly less than the naive sum-of-loss-years would give."""
+    naive_sum = 0.0
+    sched = m.amortization_schedule(20)
+    for yr in range(20):
+        r = m.calc_rent(m.p.primary_rent * (1 + m.rent_growth) ** yr, year_index=yr)
+        ti = r.egi - r.op_expenses - sched[yr][0] - m.annual_depreciation
+        if ti < 0:
+            naive_sum += -ti
+    netted = m.suspended_operating_losses(m.p.primary_rent, 20)
+    assert netted < naive_sum  # profitable years drew the pool down
+    assert netted >= 0.0
+
+
+def test_hold_cash_flow_uses_same_investment_rule_as_sell(m):
+    """Symmetry: a single dollar of (negative) cash flow carried to the horizon must be
+    transformed identically to the SELL side's grow-pre-tax-tax-the-gain-once rule."""
+    rate = assumptions.PRIMARY_INVEST
+    years = 15
+    # one unit of cash flow in year 0 -> compounded over (years-1) full years
+    t = years - 1
+    expected_factor = 1 + ((1 + rate) ** t - 1) * (1 - CAP_GAINS_RATE)
+    # invest_net_worth on $1 over t years gives exactly that factor
+    assert abs(m.invest_net_worth(1.0, t, rate) - expected_factor) < 1e-9
+
+
+def test_rent_growth_sensitivity_higher_growth_helps_hold(m):
+    """Higher rent growth must (weakly) raise hold net worth at every horizon, and the
+    sensitivity block must report both rates with the high rate ABOVE the low."""
+    rgs = m.compute()["rent_growth_sensitivity"]
+    assert rgs["rg_high"] > rgs["rg_low"]
+    for _, row in rgs["rows"].items():
+        assert row["high"] >= row["low"]  # faster rent growth never hurts the hold case
+
+
+def test_major_repair_modeled_net_of_tax(m):
+    """A major repair is a capital improvement, so its modeled cost is below the gross
+    cash outlay (basis-driven tax recovery)."""
+    assert 0 < m.net_major_repair < assumptions.MAJOR_REPAIR
+
+
 def test_two_properties_are_independent():
     """Two Model instances must not share state (multi-property isolation)."""
     a = Model(load_property(DEFAULT_PROPERTY))

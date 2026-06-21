@@ -72,6 +72,19 @@ render.py           presentation: builds HTML (templates/) + text from the model
    made clear in a comment, that's a signal to restructure it (extract a well-named
    pure function) until it can.
 
+6. **Keep `render.py` in sync with `assumptions.py` / `model.py`.** render is a
+   downstream consumer — when you add, rename, or remove an input or a `compute()` key,
+   the report can silently go stale: a removed constant referenced in prose, an
+   assumptions-table row that no longer reflects the inputs, or instructions that point
+   at the wrong file (e.g. "edit `assumptions.py`" after a value moved to a TOML).
+   - Surface every input that affects a number in the report's assumptions table, read
+     from the `compute()` context dict — never retype a value render doesn't own.
+   - When you change where an input lives or what it's called, grep `render.py` and
+     `templates/` for the old name and any user-facing instructions about it.
+   - The guard: after any input/model change, run `make report` and **read the output**
+     — the assumptions table and prose must still match the actual inputs and verdicts.
+     The golden snapshot guards the *numbers*; only your eyes guard the *words*.
+
 ## When you add a new input/knob
 
 1. Add the field to the `Property` dataclass (`assumptions.py`) if per-house, else add
@@ -131,6 +144,12 @@ for a model whose whole value is stable, correct figures.
   is an approximation flagged as such. This is the area most worth a CPA's eyes.
 - Property tax = assessed value × effective rate, grown at the 2% Prop 13 cap. It's
   stored as a flat dollar figure (assessed × rate) that grows — same result, simpler.
+- Depreciable `building_basis` is per-property (TOML): lower-of-cost-or-FMV at
+  conversion × a credible land/building split (use an appraisal, not a sandbagged
+  county assessment). Precision is low-stakes — recapture ≈ suspended-loss release.
+- Provenance for the tax rates and the §121/recapture/conversion rules:
+  `docs/sf-rental-tax-reference.md` (cited SF/CA reference). When changing a tax rate,
+  check it there first.
 
 ## Gotchas
 

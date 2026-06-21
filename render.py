@@ -47,6 +47,7 @@ from assumptions import (
     RISK_EVICTION_PROB,
     RISK_REPAIR_PROB,
     MOVE_BACK_YEARS,
+    SELL_SOON_MAX_YEARS,
     VACANCY_RATE,
     MGMT_RATE,
     TENANCY_YEARS,
@@ -134,6 +135,27 @@ def build_context(m: Model) -> dict:
         )
         appr_rows += _nw_row(lbl, vals, cls=cls)
 
+    # Rent-growth sensitivity rows (the single biggest swing factor). Data from
+    # compute() so render doesn't re-pick the rates.
+    rgs = m.compute()["rent_growth_sensitivity"]
+    rg_low_pct = rgs["rg_low"] * 100
+    rg_high_pct = rgs["rg_high"] * 100
+    rg_rows = ""
+    rg_rows += _nw_row(
+        f'Rent grows {rg_low_pct:g}%/yr <span class="sub">(recent SF ZORI — base)</span>',
+        [rgs["rows"][y]["low"] for y in H],
+        cls="primary",
+    )
+    rg_rows += _nw_row(
+        f'Rent grows {rg_high_pct:g}%/yr <span class="sub">(tracks home value)</span>',
+        [rgs["rows"][y]["high"] for y in H],
+    )
+    rg_rows += _nw_row(
+        '<b>Sell now + invest</b> <span class="sub">(best of 5/7%, after-tax)</span>',
+        [rgs["rows"][y]["best_sell"] for y in H],
+        cls="sell",
+    )
+
     # Worked example
     we = m.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
 
@@ -160,26 +182,32 @@ def build_context(m: Model) -> dict:
     inc_lo = sell.net_proceeds * INVEST_RATES[0]
     inc_hi = sell.net_proceeds * INVEST_RATES[1]
 
-    # Risk rows
-    base_oop = m.oop_breakdown(p.primary_rent).net
+    # Risk rows — values come from compute()["risk"] (model owns the math, incl. the
+    # net-of-tax major-repair cost; render only arranges).
+    risk = m.compute()["risk"]
+    base_oop = risk["baseline"]
     scenarios = [
         ("Normal year (baseline)", 0, base_oop),
         (
             f"+ {BAD_VACANCY_MONTHS} months extra vacancy",
-            -BAD_VACANCY_MONTHS * p.primary_rent,
-            base_oop - BAD_VACANCY_MONTHS * p.primary_rent,
+            risk["extra_vacancy"],
+            base_oop + risk["extra_vacancy"],
         ),
-        ("+ Non-paying tenant + eviction", -EVICTION_COST, base_oop - EVICTION_COST),
-        ("+ Major repair (roof/foundation)", -MAJOR_REPAIR, base_oop - MAJOR_REPAIR),
+        ("+ Non-paying tenant + eviction", risk["eviction"], base_oop + risk["eviction"]),
+        (
+            "+ Major repair (roof/foundation), net of tax",
+            risk["major_repair"],
+            base_oop + risk["major_repair"],
+        ),
     ]
-    worst_extra = BAD_VACANCY_MONTHS * p.primary_rent + EVICTION_COST + MAJOR_REPAIR
-    worst_total = base_oop - worst_extra
+    worst_extra = -risk["worst_extra"]
+    worst_total = risk["worst_total"]
     risk_rows = ""
     for label, hit, total in scenarios:
         hit_s = "<td>—</td>" if hit == 0 else f'<td class="num-bad">−{abs(hit):,.0f}</td>'
         risk_rows += f'<tr><td>{label}</td>{hit_s}<td class="num-bad">−{abs(total):,.0f}</td></tr>'
     risk_rows += (
-        f'<tr class="total"><td>WORST CASE: all three at once</td>'
+        f'<tr class="total"><td>WORST CASE: all three in one year</td>'
         f'<td class="num-bad">−{worst_extra:,.0f}</td>'
         f'<td class="num-bad">−{abs(worst_total):,.0f}</td></tr>'
     )
@@ -246,8 +274,9 @@ def build_context(m: Model) -> dict:
         ),
         (
             "Hold opportunity cost",
-            f"{AFTERTAX_OPP * 100:.1f}% after-tax",
-            f"{PRIMARY_INVEST * 100:g}% × (1−{CAP_GAINS_RATE * 100:.1f}% cap-gains); on neg. cash flow &amp; reserve",
+            f"{PRIMARY_INVEST * 100:g}% pre-tax",
+            "neg. cash flow &amp; reserve compounded the SAME as the sell side "
+            "(grow pre-tax, tax the gain once) — symmetric",
         ),
         (
             "Expected risk drag",
@@ -257,7 +286,8 @@ def build_context(m: Model) -> dict:
         (
             "Bad-year events",
             "vac/evict/repair",
-            f"{BAD_VACANCY_MONTHS}mo vacancy, ${EVICTION_COST:,.0f} eviction, ${MAJOR_REPAIR:,.0f} repair (stacked)",
+            f"{BAD_VACANCY_MONTHS}mo vacancy, ${EVICTION_COST:,.0f} eviction, ${MAJOR_REPAIR:,.0f} repair "
+            f"(capital improvement → ${m.net_major_repair:,.0f} net of tax). Worst case stacks all three.",
         ),
         (
             "§121 move-back proration",
@@ -335,6 +365,13 @@ def build_context(m: Model) -> dict:
         "primary_rent": p.primary_rent,
         "cg_exclusion": CG_EXCLUSION,
         "sale_cost_rate": SALE_COST_RATE,
+        "broker_rate": BROKER_RATE,
+        "transfer_tax": TRANSFER_TAX,
+        "title_escrow": TITLE_ESCROW,
+        "move_back_years": MOVE_BACK_YEARS,
+        "sell_soon_max_years": SELL_SOON_MAX_YEARS,
+        "appreciation_low": APPRECIATION["low"],
+        "longest_horizon": v["longest_horizon"],
         "worked_horizon": WORKED_EXAMPLE_HORIZON,
         "primary_appreciation": PRIMARY_APPRECIATION,
         "passive_loss_magi_limit": PASSIVE_LOSS_MAGI_LIMIT,
@@ -344,6 +381,9 @@ def build_context(m: Model) -> dict:
         "hz_head": M(hz_head),
         "headline_rows": M(headline),
         "appr_rows": M(appr_rows),
+        "rg_rows": M(rg_rows),
+        "rg_low_pct": rg_low_pct,
+        "rg_high_pct": rg_high_pct,
         "oop_head": M(oop_head),
         "oop_rows": [M(x) for x in oop_rows],
         "oop_net": M(oop_net),

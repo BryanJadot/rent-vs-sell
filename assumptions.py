@@ -41,6 +41,7 @@ class Property:
     as_of_date: str
     home_value: float
     cost_basis: float
+    building_basis: float
     mortgage_bal: float
     monthly_pi: float
     payments_left: int
@@ -48,8 +49,8 @@ class Property:
     property_tax: float
     insurance: float
     repairs: float
-    rent_levels: list
-    realistic_rents: list
+    rent_levels: list[float]
+    realistic_rents: list[float]
     primary_rent: float
     cash_reserve: float
 
@@ -83,15 +84,17 @@ PASSIVE_LOSS_MAGI_LIMIT = 150_000  # MAGI above which passive losses suspend
 DEPREC_RECAPTURE_RATE = FED_RECAPTURE + CA_TOP_RATE  # fed §1250 + CA ordinary
 CAP_GAINS_RATE = FED_LT_CAP_GAINS + NIIT_RATE + CA_TOP_RATE
 CG_EXCLUSION = 250_000  # §121 primary-residence exclusion (single filer)
-SEC121_USE_YEARS = 2  # must occupy 2 of last 5 yrs for §121
-SEC121_LOOKBACK = 5
+# The §121 "use" test (occupy 2 of the last 5 yrs) is encoded operationally by
+# SELL_SOON_MAX_YEARS below — that's the max rental period where the test still passes.
 MOVE_BACK_YEARS = 2  # yrs re-occupied before sale in the move-back scenario
 SELL_SOON_MAX_YEARS = 3  # max hold where "sell soon" still passes the 2-of-5 test
 # MAGI > limit → passive rental losses suspended, released at sale (no yearly shield)
 PASSIVE_LOSS_USABLE_YEARLY = False
 
 # ── Depreciation ──────────────────────────────────────────────────────────────
-BUILDING_PCT = 0.60  # share of basis that is building (not land)
+# The depreciable building basis (cost/value excluding non-depreciable land) is a
+# PER-PROPERTY input — see Property.building_basis in the TOML, since the land/building
+# split differs per house. Only the recovery period is shared:
 DEPREC_YEARS = 27.5  # residential rental straight-line
 
 # ── Risk (landlord buffer + bad-year events) ──────────────────────────────────
@@ -112,10 +115,12 @@ SALE_COST_RATE = BROKER_RATE + TRANSFER_TAX + TITLE_ESCROW  # ~6.43%
 
 # ── Investing the sale proceeds / opportunity cost ────────────────────────────
 INVEST_RATES = [0.05, 0.07]  # conservative / S&P long-run nominal
-PRIMARY_INVEST = INVEST_RATES[1]  # pre-tax rate for the SELL path's compounding (7%)
-# HOLD path's negative cash flow + idle reserve are charged the AFTER-TAX
-# opportunity cost (SELL gains are taxed, so symmetry requires after-tax).
-AFTERTAX_OPP = PRIMARY_INVEST * (1 - CAP_GAINS_RATE)  # ~7% × (1−37.1%) ≈ 4.4%
+PRIMARY_INVEST = INVEST_RATES[1]  # pre-tax rate, used for BOTH paths' compounding (7%)
+# Both paths now compound PRE-TAX at PRIMARY_INVEST and tax the gain once at the end
+# (see model.compounded_cash_flow). AFTERTAX_OPP is only a one-year DISPLAY figure —
+# the after-tax return forgone on a dollar idle for a single year (a 1-yr gain is
+# taxed in full, so the 1-yr after-tax rate equals pre-tax × (1−CG)).
+AFTERTAX_OPP = PRIMARY_INVEST * (1 - CAP_GAINS_RATE)  # ~7% × (1−37.1%) ≈ 4.4% (1-yr only)
 
 # ── Appreciation scenarios (S&P Case-Shiller SF, FRED SFXRSA, latest 2026-03) ─
 #   2.5% = 20-yr CAGR (peak-to-now), 4.85% = 10-yr CAGR, 6% ≈ 30-yr full cycle.
