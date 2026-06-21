@@ -136,7 +136,10 @@ PRIMARY_INVEST = INVEST_RATES[1]  # pre-tax rate, used for BOTH paths' compoundi
 APPRECIATION = {"low": 0.025, "moderate": 0.0485, "high": 0.06}
 # Source note per scenario (Case-Shiller window), shown in the sensitivity table:
 APPRECIATION_NOTES = {"low": "SF 20-yr", "moderate": "SF 10-yr", "high": "SF 30-yr"}
-APPRECIATION_TAGS = {"low": "pessimistic", "moderate": "primary", "high": "optimistic"}
+# Neutral, factual tags — which end of the observed SF history each rate is, NOT a
+# good/bad valence ("pessimistic"/"optimistic" would editorialize which outcome is
+# desirable, i.e. lean toward a verdict; see CLAUDE.md rule 2). "primary" marks the base.
+APPRECIATION_TAGS = {"low": "low end", "moderate": "primary", "high": "high end"}
 PRIMARY_APPRECIATION = APPRECIATION["moderate"]
 
 HORIZONS = [3, 5, 10, 15, 20]  # years
