@@ -349,6 +349,21 @@ class Model:
         return Sell(p.home_value, broker, transfer, title, total, p.mortgage_bal, net, gain, tax)
 
     # ── Rent (year-1 economics; year_index inflates fixed costs) ───────────────
+    def _pi_months_in_year(self, year_index: int) -> int:
+        """How many monthly P&I payments are actually made during year `year_index`.
+
+        The mortgage ends after `payments_left` payments (≈ year payments_left/12). Years
+        fully inside the term pay 12; the year the loan is retired pays the partial
+        remainder; every year AFTER payoff pays 0. Without this the cash-flow model would
+        keep subtracting a full year's P&I forever — a silent drain on a loan that no
+        longer exists, which understates the hold path at horizons past payoff. Returns an
+        int in [0, 12]. (Whole-month granularity; a mid-month payoff isn't modeled — the
+        P&I is level, so a fractional final month is immaterial next to the headline.)
+        """
+        months_before = year_index * MONTHS_PER_YEAR
+        remaining = self.p.payments_left - months_before
+        return max(0, min(MONTHS_PER_YEAR, remaining))
+
     def calc_rent(self, monthly_rent: float, year_index: int = 0) -> Rent:
         p = self.p
         gross = monthly_rent * MONTHS_PER_YEAR
@@ -361,7 +376,10 @@ class Model:
         fixed = prop_tax + other_fixed
         op = fixed + mgmt + leasing
         noi = egi - op
-        annual_pi = p.monthly_pi * MONTHS_PER_YEAR
+        # P&I for ONLY the months the loan is still active this year — after payoff the
+        # property carries no mortgage and the cash flow turns strongly positive (the loan
+        # is gone, rent keeps coming). See _pi_months_in_year.
+        annual_pi = p.monthly_pi * self._pi_months_in_year(year_index)
         cash_flow = noi - annual_pi
         return Rent(
             monthly_rent,

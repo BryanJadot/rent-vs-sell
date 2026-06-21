@@ -83,6 +83,13 @@ function principalPaidOver(P, years) {
   return [P.mortgage_bal - remaining, remaining];
 }
 
+function piMonthsInYear(P, yearIndex) {
+  // Mirror of Model._pi_months_in_year: months of P&I actually paid in this year (the loan
+  // ends after payments_left payments; 0 after payoff). Clamped to [0, 12].
+  const remaining = P.payments_left - yearIndex * P.months_per_year;
+  return Math.max(0, Math.min(P.months_per_year, remaining));
+}
+
 function calcRent(P, monthlyRent, yearIndex) {
   // Mirror of Model.calc_rent. Returns the fields the engine consumes.
   const gross = monthlyRent * P.months_per_year;
@@ -95,7 +102,8 @@ function calcRent(P, monthlyRent, yearIndex) {
   const fixed = propTax + otherFixed;
   const op = fixed + mgmt + leasing;
   const noi = egi - op;
-  const annualPi = P.monthly_pi * P.months_per_year;
+  // P&I only while the loan is active; after payoff the property carries no mortgage.
+  const annualPi = P.monthly_pi * piMonthsInYear(P, yearIndex);
   const cashFlow = noi - annualPi;
   return { gross, vacancy, egi, mgmt, leasing, propTax, otherFixed, fixed, op, noi, annualPi, cashFlow };
 }
