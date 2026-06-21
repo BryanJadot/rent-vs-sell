@@ -51,6 +51,27 @@ render.py           presentation: builds HTML (templates/) + text from the model
    anything time-relative (e.g. `years_owned_as_residence`). Don't reintroduce
    `date.today()` — re-running months later must give identical numbers.
 
+5. **`model.py` must be self-teaching.** This is financial/tax math where a wrong sign
+   or a misunderstood rule is catastrophic and silent, so the code must explain *why*,
+   not just *what* — to the standard that a competent newcomer (or a fresh Claude with
+   no prior context from this project) could read `model.py` top-to-bottom and fully
+   understand and defend every number, without needing a CPA or this chat history.
+   Concretely, every calculation that encodes a financial/tax rule carries a comment
+   that states:
+   - **What real-world rule it implements** (e.g. "§121: gain attributable to
+     non-qualified-use years is not excludable"), named so it can be looked up.
+   - **Why it's done this way** — the reasoning or the choice between alternatives
+     (e.g. "charged at the *after-tax* opportunity cost because the SELL path is taxed
+     on its gains, so symmetry requires after-tax").
+   - **Sign/unit conventions** where they matter (e.g. "outflows are negative";
+     "annual nominal dollars"; "a rate in [0,1]").
+   - **Known simplifications and their direction** (e.g. "flat effective rate; real
+     brackets are graduated — slightly overstates tax in low-income years").
+   When you add or change a formula, add/expand the comment so the *why* survives.
+   Prefer a short prose comment over a clever one-liner. If a piece of logic can't be
+   made clear in a comment, that's a signal to restructure it (extract a well-named
+   pure function) until it can.
+
 ## When you add a new input/knob
 
 1. Add the field to the `Property` dataclass (`assumptions.py`) if per-house, else add
@@ -61,13 +82,42 @@ render.py           presentation: builds HTML (templates/) + text from the model
 4. If it should show in the report, add it to the assumptions table in `render.py` and
    surface it via the context dict — interpolated, never hardcoded.
 5. Add/extend a test in `tests/test_model.py` if it affects the math.
-6. Run `make test && make lint && make report` and eyeball the output.
+6. Run `make check` (format-check + lint + tests) and `make report`; eyeball the output.
+7. If the change moved any numbers **on purpose**, regenerate the golden snapshot
+   (`make snapshot`) — see "Golden snapshots" below.
 
 ## When you add a new property
 
 `cp properties/harold-ave.toml properties/<name>.toml`, edit values, then
 `make report PROPERTY=properties/<name>.toml`. Two `Model` instances are independent
 (no shared state) — there's a test for that.
+
+## Workflow / commands
+
+- `make check` — format-check + lint + tests. **Run before every commit** (the
+  pre-commit hook runs it too; see below). Fix formatting with `make fmt`.
+- `make report [PROPERTY=...]` — regenerate the HTML + text into `output/`.
+- `make model [PROPERTY=...]` — dump `output/model_output.json` (audit artifact).
+- `make snapshot` — regenerate the committed golden files (see below).
+- **Pre-commit hook:** `scripts/pre-commit` runs `make check`. It's a plain git hook
+  (no framework). Install once per clone:
+  `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`.
+
+## Golden snapshots (the numeric safety net)
+
+`tests/golden/*.json` are committed snapshots of `compute()` for each property.
+`test_matches_golden_snapshot` diffs the live output against them (within $0.01), so
+**any unintended change to a number fails a test** — the single most important guard
+for a model whose whole value is stable, correct figures.
+
+- **Refactoring (numbers shouldn't change):** do NOT run `make snapshot`. If the
+  golden test fails, you changed a number you didn't mean to — investigate, don't
+  regenerate.
+- **Intentional change (a number SHOULD move):** verify the new numbers are right,
+  then `make snapshot` to update the golden files, and commit them in the same change
+  so the diff shows exactly what moved.
+- The golden test is also why `scripts/snapshot.py` lists every property — add new
+  ones there so they're covered.
 
 ## Tax modeling notes (where the subtlety lives)
 
@@ -84,7 +134,7 @@ render.py           presentation: builds HTML (templates/) + text from the model
 
 ## Gotchas
 
-- Run tests with `uv run python -m pytest` (or `make test`). Bare `pytest` may resolve
+- Run tests with `make check` (or `uv run python -m pytest`). Bare `pytest` may resolve
   to a system Python without `tomllib` (needs 3.11+).
 - `output/` is generated and gitignored — never edit it by hand; edit inputs and re-run.
 - `output/model_output.json` is an audit artifact (full computed dict), not an input to

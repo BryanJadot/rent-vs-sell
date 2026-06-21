@@ -1,0 +1,5 @@
+#!/bin/sh
+# Pre-commit hook: lint + tests must pass before a commit.
+# Install once with:  ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+# (kept as a plain git hook to avoid a pre-commit-framework dependency)
+exec make check

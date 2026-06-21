@@ -30,8 +30,9 @@ make report PROPERTY=properties/harold-ave.toml
 uv run python render.py properties/harold-ave.toml
 ```
 
-Other targets: `make model` (dump `output/model_output.json` audit artifact),
-`make test`, `make lint`, `make fmt`, `make clean`.
+Other targets: `make check` (format-check + lint + tests, run before committing),
+`make model` (dump `output/model_output.json` audit artifact), `make snapshot`
+(regenerate golden files after an intended numeric change), `make fmt`, `make clean`.
 
 ## Analyzing a different house
 
