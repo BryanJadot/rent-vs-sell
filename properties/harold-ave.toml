@@ -36,4 +36,6 @@ realistic_rents = [5_000, 5_500]                 # featured in the report
 primary_rent    = 5_000
 
 # ── Risk buffer ───────────────────────────────────────────────────────────────
-cash_reserve = 50_000          # landlord buffer you'd set aside
+cash_reserve = 90_000          # landlord buffer, sized to cover a realistic worst-case
+                               #   year (extra vacancy + eviction + a major repair). Held in
+                               #   short-term bonds (~3%, RESERVE_RATE), not the stock market.

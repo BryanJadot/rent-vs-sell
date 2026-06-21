@@ -5,11 +5,13 @@ A small financial model that compares two choices for a house you own:
 - **SELL** it now and invest the after-tax proceeds, vs.
 - **RENT** it out, hold, and sell later.
 
-It produces an HTML report (the numbers), a companion interpretation page (verdicts,
-questions, next steps), and a plain-text summary. The comparison is apples-to-apples:
-the hold path is charged the costs **and** taxes of the eventual future sale, and its
-negative monthly cash flow is charged the same after-tax opportunity cost the invested
-sale proceeds would earn.
+It produces an HTML report and a plain-text summary — **data only**: figures,
+sensitivities, and explanations of how each number is built. It deliberately contains
+**no interpretation** (no verdict or recommendation); interpretation is meant to be
+produced by a separate downstream prompt so it isn't anchored by baked-in conclusions.
+The comparison is apples-to-apples: the hold path is charged the costs **and** taxes of
+the eventual future sale, and its cash flow is carried forward the same way the invested
+sale proceeds are (grown pre-tax, gain taxed once at the end).
 
 > Estimates only. Confirm the tax treatment with a CPA and the rent/risk figures with a
 > property manager before making a decision.

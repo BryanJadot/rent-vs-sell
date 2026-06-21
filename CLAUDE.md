@@ -28,11 +28,25 @@ render.py           presentation: builds HTML (templates/) + text from the model
 ## The cardinal rules
 
 1. **No math in `render.py`.** If you're computing a dollar figure or a comparison,
-   it belongs in `model.py`. render only formats and arranges. The verdict *prose* is
-   assembled in render, but every *number* and every beats/trails/ties decision comes
-   from `model.compute()` — so the words can never contradict the tables.
+   it belongs in `model.py`. render only formats and arranges; every number comes from
+   `model.compute()` or the model's calc methods — so the page can never contradict the
+   tables.
 
-2. **No magic numbers / no duplicated values.** Every rate, threshold, or input has
+2. **No interpretation in the generated output.** The report (and `compute()`) contain
+   DATA ONLY: figures, sensitivities, and explanations of *terms and mechanics* (what
+   depreciation recapture is; why both sides are taxed symmetrically; what a sensitivity
+   row varies). They must NOT contain a verdict, recommendation, "which is better,"
+   beats/trails comparison, edge/upside/downside aggregate, win-count, or
+   questions/next-steps. *Why:* interpretation is produced by a separate downstream
+   prompt, and we don't want that prompt anchored by conclusions we baked in. *How to
+   apply:* keep tables and term/mechanic explanations; if a sentence states or implies
+   which choice comes out ahead, it doesn't belong here. This also covers code comments
+   and docstrings that a future agent would read — explain the *mechanics*, not the
+   conclusion. Neutral *factual* notes (legal/process facts like AB 1482, just-cause
+   eviction) are allowed as facts, not advice. (Removed: the old `verdict` block,
+   `_compare`, `headline_verdict`/`take`/`bet_framing`, and the interpretation page.)
+
+3. **No magic numbers / no duplicated values.** Every rate, threshold, or input has
    exactly one definition:
    - Per-house values → the property's TOML (`properties/*.toml`).
    - Shared market/tax/policy values → `assumptions.py`.
@@ -42,16 +56,16 @@ render.py           presentation: builds HTML (templates/) + text from the model
    do not retype it. (A literal "$250k" in HTML that should be `CG_EXCLUSION` will
    silently drift when the constant changes.)
 
-3. **Per-house vs. shared.** Before adding an input, decide: does it differ per house?
+4. **Per-house vs. shared.** Before adding an input, decide: does it differ per house?
    → TOML + a `Property` field. Is it a market/tax/policy assumption reused across
    houses? → `assumptions.py`. When in doubt, if two houses in the same metro would
    share it, it's shared.
 
-4. **Pin the analysis date.** `as_of_date` lives in the property TOML and is used for
+5. **Pin the analysis date.** `as_of_date` lives in the property TOML and is used for
    anything time-relative (e.g. `years_owned_as_residence`). Don't reintroduce
    `date.today()` — re-running months later must give identical numbers.
 
-5. **`model.py` must be self-teaching.** This is financial/tax math where a wrong sign
+6. **`model.py` must be self-teaching.** This is financial/tax math where a wrong sign
    or a misunderstood rule is catastrophic and silent, so the code must explain *why*,
    not just *what* — to the standard that a competent newcomer (or a fresh Claude with
    no prior context from this project) could read `model.py` top-to-bottom and fully
@@ -72,7 +86,7 @@ render.py           presentation: builds HTML (templates/) + text from the model
    made clear in a comment, that's a signal to restructure it (extract a well-named
    pure function) until it can.
 
-6. **Keep `render.py` in sync with `assumptions.py` / `model.py`.** render is a
+7. **Keep `render.py` in sync with `assumptions.py` / `model.py`.** render is a
    downstream consumer — when you add, rename, or remove an input or a `compute()` key,
    the report can silently go stale: a removed constant referenced in prose, an
    assumptions-table row that no longer reflects the inputs, or instructions that point
@@ -82,8 +96,9 @@ render.py           presentation: builds HTML (templates/) + text from the model
    - When you change where an input lives or what it's called, grep `render.py` and
      `templates/` for the old name and any user-facing instructions about it.
    - The guard: after any input/model change, run `make report` and **read the output**
-     — the assumptions table and prose must still match the actual inputs and verdicts.
-     The golden snapshot guards the *numbers*; only your eyes guard the *words*.
+     — the assumptions table and term/mechanic explanations must still match the actual
+     inputs (and must stay free of interpretation per rule 2). The golden snapshot guards
+     the *numbers*; only your eyes guard the *words*.
 
 ## When you add a new input/knob
 

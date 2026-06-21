@@ -9,9 +9,13 @@ into a plain dict (the contract consumed by render.py).
 
 The comparison is apples-to-apples:
   • HOLD subtracts selling costs AND capital-gains tax at the FUTURE sale.
-  • HOLD's negative cash flow + idle reserve are charged the AFTER-TAX opportunity
-    cost (the SELL path is taxed on its gains, so symmetry requires after-tax).
+  • HOLD's negative cash flow is carried forward the SAME way the SELL proceeds are —
+    grown at the pre-tax rate with the gain taxed once at liquidation; the reserve at
+    the bond rate. Both sides use one investment rule (see compounded_cash_flow).
   • SELL proceeds are compounded and the investment gain is taxed at liquidation.
+
+The generated report is DATA ONLY (figures + mechanic explanations); it contains no
+interpretation/verdict. compute() likewise returns facts, not a beats/trails call.
 
 render.py calls compute() in-process; running model.py standalone instead dumps the
 dict to output/model_output.json as a standalone AUDIT ARTIFACT (so every computed
@@ -36,6 +40,7 @@ from assumptions import (
     RENT_GROWTH,
     DEPREC_YEARS,
     MARGINAL_TAX,
+    NIIT_RATE,
     DEPREC_RECAPTURE_RATE,
     CAP_GAINS_RATE,
     CG_EXCLUSION,
@@ -48,13 +53,13 @@ from assumptions import (
     RISK_VACANCY_PROB,
     RISK_EVICTION_PROB,
     RISK_REPAIR_PROB,
+    RESERVE_RATE,
     BROKER_RATE,
     TRANSFER_TAX,
     TITLE_ESCROW,
     SALE_COST_RATE,
     INVEST_RATES,
     PRIMARY_INVEST,
-    AFTERTAX_OPP,
     APPRECIATION,
     PRIMARY_APPRECIATION,
     HORIZONS,
@@ -200,8 +205,9 @@ def tax_at_sale(
         (no annual deduction) and released all at once at sale, deductible at the
         ordinary MARGINAL_TAX rate → a benefit. suspended_loss is the accumulated loss.
         (If PASSIVE_LOSS_USABLE_YEARLY, suspended_loss is 0 because it was used yearly.)
-        NOTE: recapture and release nearly cancel for a CA high earner because CA taxes
-        recapture at roughly the same rate the loss is deducted at — by design, not a bug.
+        NOTE: recapture and release only PARTIALLY offset — recapture accrues on all
+        depreciation taken, while the released loss pool is drawn down once the rental
+        turns tax-positive in later years, so they do not cancel over a long hold.
 
       • CAP_GAINS_TAX: the appreciation above original cost basis, minus any §121
         exclusion, taxed at CAP_GAINS_RATE (fed LT 20% + NIIT 3.8% + CA 13.3%). A cost.
@@ -320,7 +326,9 @@ class Model:
         title = p.home_value * TITLE_ESCROW
         total = broker + transfer + title
         net = p.home_value - total - p.mortgage_bal
-        gain = p.home_value - p.cost_basis  # negative => a loss
+        # Taxable gain is the AMOUNT REALIZED (price net of selling costs) minus basis
+        # (IRC §1001/§1016 — selling expenses reduce the amount realized). Negative => loss.
+        gain = (p.home_value - total) - p.cost_basis
         tax = 0.0 if gain <= CG_EXCLUSION else (gain - CG_EXCLUSION) * CAP_GAINS_RATE
         return Sell(p.home_value, broker, transfer, title, total, p.mortgage_bal, net, gain, tax)
 
@@ -383,6 +391,47 @@ class Model:
             - self.expected_risk_drag
         )
 
+    def _taxable_rental_income(
+        self, monthly_rent: float, year_index: int, interest_yr: float
+    ) -> float:
+        """One year's TAXABLE rental income = rent − op-ex − mortgage INTEREST −
+        depreciation. (Only interest is deductible, not principal; depreciation stops
+        after the 27.5-yr recovery period.) Negative => a tax loss that year. Distinct
+        from _year_cash_flow, which is ECONOMIC cash (uses full P&I, no depreciation)."""
+        rent_this_yr = monthly_rent * (1 + self.rent_growth) ** year_index
+        r = self.calc_rent(rent_this_yr, year_index=year_index)
+        deprec = self.annual_depreciation if year_index < DEPREC_YEARS else 0.0
+        return r.egi - r.op_expenses - interest_yr - deprec
+
+    def _profit_year_taxes(self, monthly_rent: float, years: int) -> list[float]:
+        """Per-year income tax owed on PROFITABLE rental years, as a list aligned to
+        years 0..years-1 (each a non-negative cost).
+
+        Under high MAGI, yearly losses are suspended into a §469 pool (see
+        suspended_operating_losses). Once the rental turns tax-positive, that profit is
+        first absorbed by the pool (no tax) and only the EXCESS over the remaining pool is
+        taxed — at the ordinary marginal rate plus NIIT, since net rental income is passive
+        investment income. (If passive losses are usable yearly, there is no pool and
+        profits are taxed in full as they arise.)
+        """
+        schedule = self.amortization_schedule(years)
+        pool = 0.0
+        taxes = []
+        for yr in range(years):
+            ti = self._taxable_rental_income(monthly_rent, yr, schedule[yr][0])
+            if ti < 0:
+                if not PASSIVE_LOSS_USABLE_YEARLY:
+                    pool += -ti  # suspend the loss
+                taxes.append(0.0)
+            else:
+                taxable = ti
+                if not PASSIVE_LOSS_USABLE_YEARLY:
+                    absorbed = min(pool, ti)  # prior suspended losses shelter the profit
+                    pool -= absorbed
+                    taxable = ti - absorbed
+                taxes.append(taxable * (MARGINAL_TAX + NIIT_RATE))
+        return taxes
+
     def compounded_cash_flow(self, monthly_rent: float, years: int, pretax_rate: float) -> float:
         """FV at the horizon of every year's hold cash flow, carried forward the SAME
         way the SELL path's proceeds are: grown at the PRE-TAX `pretax_rate`, with only
@@ -397,12 +446,16 @@ class Model:
         unfairly favoring HOLD. The transform below is algebraically identical to
         invest_net_worth's (verified), so both sides use one investment rule.
 
-        Works for negative cash flow (a drain): only the gain portion is taxed, so an
-        outflow is carried forward as outflow + after-tax forgone growth.
+        Each year's cash flow is the ECONOMIC cash flow LESS any income tax owed on a
+        profitable rental year (see _profit_year_taxes — zero while the property runs at
+        a tax loss, which is every year for a typical high-leverage hold). Works for
+        negative cash flow (a drain): only the gain portion is taxed, so an outflow is
+        carried forward as outflow + after-tax forgone growth.
         """
+        profit_taxes = self._profit_year_taxes(monthly_rent, years)
         fv = 0.0
         for yr in range(years):
-            cf = self._year_cash_flow(monthly_rent, yr)
+            cf = self._year_cash_flow(monthly_rent, yr) - profit_taxes[yr]
             growth = (1 + pretax_rate) ** (years - yr - 1)
             fv += cf * (1 + (growth - 1) * (1 - CAP_GAINS_RATE))
         return fv
@@ -427,10 +480,7 @@ class Model:
         pool = 0.0
         schedule = self.amortization_schedule(years)
         for yr in range(years):
-            interest_yr = schedule[yr][0]
-            rent_this_yr = monthly_rent * (1 + self.rent_growth) ** yr
-            r = self.calc_rent(rent_this_yr, year_index=yr)
-            taxable_income = r.egi - r.op_expenses - interest_yr - self.annual_depreciation
+            taxable_income = self._taxable_rental_income(monthly_rent, yr, schedule[yr][0])
             # Negative income grows the pool; positive income (passive) draws it down.
             pool = max(0.0, pool - taxable_income)
         return pool
@@ -479,7 +529,10 @@ class Model:
         # Depreciation stops accruing after the 27.5-yr schedule ends, hence the min().
         accumulated_deprec = self.annual_depreciation * min(years, DEPREC_YEARS)
         suspended_loss = self.suspended_operating_losses(monthly_rent, years)
-        appreciation_gain = max(0.0, future_value - p.cost_basis)
+        # Taxable appreciation is the AMOUNT REALIZED (future price net of selling costs)
+        # minus basis (IRC §1001 — selling costs reduce the amount realized), same as
+        # calc_sell. Recapture is handled separately in tax_at_sale.
+        appreciation_gain = max(0.0, (future_value - sale_costs) - p.cost_basis)
         st = tax_at_sale(
             accumulated_deprec,
             suspended_loss,
@@ -489,10 +542,15 @@ class Model:
             p.years_owned_as_residence,
         )
 
-        # The reserve sits in cash the whole hold instead of compounding — count the
-        # forgone growth as a real cost of holding, on the same grow-pre-tax-tax-the-
-        # gain-once basis as everything else (only the gain is taxed, hence ×(1−CG)).
-        reserve_opp_cost = p.cash_reserve * ((1 + opp_rate) ** years - 1) * (1 - CAP_GAINS_RATE)
+        # Reserve opportunity cost = the SPREAD you give up by holding. A landlord reserve
+        # must stay liquid/safe, so while holding it earns the short-term bond rate
+        # (RESERVE_RATE), whereas if you'd sold, that same cash could go into the market at
+        # opp_rate. The cost is the difference in growth, on the symmetric grow-then-tax-
+        # the-gain-once basis (only the gain is taxed, hence ×(1−CG)). Charged to hold only
+        # — the sell path needs no landlord reserve.
+        opp_growth = (1 + opp_rate) ** years
+        bond_growth = (1 + RESERVE_RATE) ** years
+        reserve_opp_cost = p.cash_reserve * (opp_growth - bond_growth) * (1 - CAP_GAINS_RATE)
 
         net_worth = (
             gross_equity
@@ -599,23 +657,30 @@ class Model:
             },
         }
 
+        # Opportunity-rate sensitivity: the rate at which BOTH sides compound is applied
+        # to different principal amounts — the sell side compounds the (smaller) cash
+        # proceeds, while the hold side applies it to the cash-flow stream and reserve
+        # against a leveraged asset — so the two sides' net-worth figures respond
+        # differently to it. Report both at each INVEST_RATES level (same rate on both
+        # sides, central appreciation, primary rent); the reader compares.
+        opp_rate_sensitivity = {
+            "rates": list(INVEST_RATES),
+            "rows": {
+                y: {
+                    f"{int(r * 100)}%": {
+                        "hold": self.hold_net_worth(
+                            p.primary_rent, y, PRIMARY_APPRECIATION, opp_rate=r
+                        ).net_worth,
+                        "sell": self.invest_net_worth(np_, y, r),
+                    }
+                    for r in INVEST_RATES
+                }
+                for y in H
+            },
+        }
+
         we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
-
-        h10 = self.hold_net_worth(p.primary_rent, 10, PRIMARY_APPRECIATION).net_worth
-        h20 = self.hold_net_worth(p.primary_rent, 20, PRIMARY_APPRECIATION).net_worth
         hz = max(H)
-        hold_central_long = self.hold_net_worth(p.primary_rent, hz, PRIMARY_APPRECIATION).net_worth
-        hold_low_long = self.hold_net_worth(p.primary_rent, hz, APPRECIATION["low"]).net_worth
-        hold_high_long = self.hold_net_worth(p.primary_rent, hz, APPRECIATION["high"]).net_worth
-        sell_long = self.best_sell(hz)
-
-        win_cells = sum(
-            1
-            for r in p.realistic_rents
-            for y in H
-            if self.hold_net_worth(r, y, PRIMARY_APPRECIATION).net_worth > self.best_sell(y)
-        )
-        total_cells = len(p.realistic_rents) * len(H)
 
         weh = WORKED_EXAMPLE_HORIZON
         cum_oop_10 = sum(-self._year_cash_flow(p.primary_rent, yr) for yr in range(weh))
@@ -664,7 +729,7 @@ class Model:
                 "cg_exclusion": CG_EXCLUSION,
                 "invest_rates": INVEST_RATES,
                 "primary_invest": PRIMARY_INVEST,
-                "aftertax_opp": AFTERTAX_OPP,
+                "reserve_rate": RESERVE_RATE,
                 "cash_reserve": p.cash_reserve,
                 "annual_depreciation": self.annual_depreciation,
                 "expected_risk_drag": self.expected_risk_drag,
@@ -686,42 +751,27 @@ class Model:
             "sell_grid": sell_grid,
             "best_sell_by_horizon": best_sell_by_h,
             "rent_growth_sensitivity": rent_growth_sensitivity,
+            "opp_rate_sensitivity": opp_rate_sensitivity,
             "worked_example": asdict(we),
             "risk": risk,
-            "verdict": {
-                "h10": h10,
-                "h20": h20,
-                "best_sell_10": self.best_sell(10),
-                "best_sell_20": self.best_sell(20),
-                "verb_10": _compare(h10, self.best_sell(10)),
-                "verb_20": _compare(h20, self.best_sell(20)),
-                "hold_low_long": hold_low_long,
-                "hold_central_long": hold_central_long,
-                "hold_high_long": hold_high_long,
-                "sell_long": sell_long,
-                "verb_low_long": _compare(hold_low_long, sell_long),
-                "upside": hold_high_long - sell_long,
-                "central_edge": hold_central_long - sell_long,
-                "downside": hold_low_long - sell_long,
-                "win_cells": win_cells,
-                "total_cells": total_cells,
+            # Neutral cash FACTS only — out-of-pocket figures used by the report. The
+            # net-worth numbers themselves live in hold_grid / sell_grid /
+            # best_sell_by_horizon and the sensitivity blocks; this section deliberately
+            # holds NO beats/trails comparison, edge, or win-count — those are
+            # interpretation, produced downstream, not here.
+            "cash_facts": {
                 "longest_horizon": hz,
                 "cum_oop_10": cum_oop_10,
                 "yr1_oop": yr1_oop,
                 "yr10_oop": yr10_oop,
                 "mo_oop": yr1_oop / MONTHS_PER_YEAR,
-                "reserve_cost_yr": p.cash_reserve * AFTERTAX_OPP,
+                # One-year reserve drag: the after-tax spread between the market rate and
+                # the bond rate the reserve actually earns (consistent with reserve_opp_cost).
+                "reserve_cost_yr": p.cash_reserve
+                * (PRIMARY_INVEST - RESERVE_RATE)
+                * (1 - CAP_GAINS_RATE),
             },
         }
-
-
-def _compare(hold_v: float, sell_v: float) -> str:
-    diff = hold_v - sell_v
-    # Tie band is 3% of the comparison magnitude. Use abs(sell_v) so a negative or
-    # zero sell value can't invert the threshold (would otherwise never register a tie).
-    if abs(diff) < 0.03 * abs(sell_v):
-        return "roughly ties"
-    return "beats" if diff > 0 else "trails"
 
 
 def _main():

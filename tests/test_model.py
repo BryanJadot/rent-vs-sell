@@ -112,11 +112,24 @@ def test_sell_invest_is_after_tax(m):
 
 def test_compute_dict_is_complete(m):
     d = m.compute()
-    for key in ("inputs", "sell", "hold_grid", "sell_grid", "worked_example", "risk", "verdict"):
+    for key in (
+        "inputs",
+        "sell",
+        "hold_grid",
+        "sell_grid",
+        "rent_growth_sensitivity",
+        "opp_rate_sensitivity",
+        "worked_example",
+        "risk",
+        "cash_facts",
+    ):
         assert key in d
-    v = d["verdict"]
-    assert v["total_cells"] == len(m.p.realistic_rents) * len(assumptions.HORIZONS)
-    assert 0 <= v["win_cells"] <= v["total_cells"]
+    # cash_facts holds neutral cash figures only — NO beats/trails verdict or win count
+    # (interpretation is produced downstream, not in compute()).
+    cf = d["cash_facts"]
+    assert cf["yr1_oop"] == pytest.approx(-m.oop_breakdown(m.p.primary_rent).net)
+    for interp_key in ("win_cells", "verb_10", "central_edge", "upside", "downside"):
+        assert interp_key not in cf
 
 
 def test_suspended_losses_zero_when_usable_yearly(m, monkeypatch):
@@ -271,29 +284,6 @@ def test_tax_at_sale_signs_and_components():
     assert st.excluded_gain == 0.0  # full rental → no exclusion
     # cap gains is taxed on the whole gain (no exclusion) at the cap-gains rate
     assert abs(st.cap_gains_tax - 400_000 * CAP_GAINS_RATE) < 1.0
-
-
-# ── Verdict comparison (the _compare tie-band bug) ──────────────────────────────
-
-
-def test_compare_handles_nonpositive_sell_value():
-    """abs(sell_v) in the tie band: a negative sell value must not invert the test.
-    The pre-fix bug: 0.03 * sell_v goes negative, so abs(diff) < negative is never
-    true and a true tie is misreported as beats/trails."""
-    from model import _compare
-
-    assert _compare(-101, -100) == "roughly ties"  # 1% gap, within 3% of |−100|
-    assert _compare(-50, -100) == "beats"  # clearly higher
-    assert _compare(-200, -100) == "trails"  # clearly lower
-    assert _compare(100, 0) == "beats"  # zero sell value, no divide/invert
-
-
-def test_compare_basic_bands():
-    from model import _compare
-
-    assert _compare(101, 100) == "roughly ties"  # 1% gap < 3% band
-    assert _compare(130, 100) == "beats"  # 30% gap
-    assert _compare(70, 100) == "trails"  # 30% gap
 
 
 # ── Golden snapshot: any unintended numeric drift becomes a visible diff ────────

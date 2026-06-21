@@ -98,7 +98,11 @@ PASSIVE_LOSS_USABLE_YEARLY = False
 DEPREC_YEARS = 27.5  # residential rental straight-line
 
 # ── Risk (landlord buffer + bad-year events) ──────────────────────────────────
-CASH_RESERVE = 50_000  # owner's landlord buffer estimate
+# The landlord reserve amount is PER-PROPERTY (Property.cash_reserve in the TOML),
+# sized to cover a realistic bad year. It must stay liquid and safe, so it earns the
+# short-term bond rate below — NOT the 7% stock rate. The opportunity cost of holding
+# it is therefore only the SPREAD between the two (see hold_net_worth.reserve_opp_cost).
+RESERVE_RATE = 0.03  # short-term bonds / T-bills — where a liquid reserve realistically sits
 BAD_VACANCY_MONTHS = 3  # vacancy in a bad year
 EVICTION_COST = 12_000  # legal + lost rent during SF eviction
 MAJOR_REPAIR = 40_000  # roof / foundation / sewer lateral, etc.

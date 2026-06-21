@@ -3,9 +3,14 @@
 render.py — PRESENTATION ONLY for the rent-vs-sell analysis.
 
 Pulls every number from model.compute() and the model's calc functions, builds the
-HTML table rows + verdict prose, and renders templates/ into output/. Also writes a
-plain-text summary. No financial math lives here — if a number looks wrong, fix
-model.py; if a value looks wrong, fix assumptions.py.
+HTML table rows, and renders templates/ into output/. Also writes a plain-text summary.
+No financial math lives here — if a number looks wrong, fix model.py; if a value looks
+wrong, fix assumptions.py.
+
+Generated output is DATA ONLY: figures, sensitivities, and explanations of how each
+number is built (terms/mechanics). It contains NO interpretation — no verdict, no
+recommendation, no "which is better". Interpretation is produced by a separate prompt
+downstream so it isn't anchored by conclusions baked in here. See CLAUDE.md.
 
 Run:  python3 render.py   (or: make report)
 """
@@ -38,7 +43,6 @@ from assumptions import (
     NIIT_RATE,
     CA_TOP_RATE,
     FED_RECAPTURE,
-    AFTERTAX_OPP,
     PRIMARY_INVEST,
     BAD_VACANCY_MONTHS,
     EVICTION_COST,
@@ -72,16 +76,12 @@ def _nw_row(label_html, values, cls="", bold_last=False):
     return f'<tr class="{cls}"><td>{label_html}</td>{cells}</tr>'
 
 
-def _approx(n: float) -> str:
-    """Round to nearest $25k to avoid false precision on multi-decade projections."""
-    return f"${round(abs(n) / 25_000) * 25:,.0f}k"
-
-
 def build_context(m: Model) -> dict:
     p = m.p
     sell = m.calc_sell()
     H = HORIZONS
     hz_head = "".join(f"<th>{y}-yr</th>" for y in H)
+    computed = m.compute()  # one call; index the slices below (compute() is the contract)
 
     # Headline net-worth rows
     headline = ""
@@ -137,7 +137,7 @@ def build_context(m: Model) -> dict:
 
     # Rent-growth sensitivity rows (the single biggest swing factor). Data from
     # compute() so render doesn't re-pick the rates.
-    rgs = m.compute()["rent_growth_sensitivity"]
+    rgs = computed["rent_growth_sensitivity"]
     rg_low_pct = rgs["rg_low"] * 100
     rg_high_pct = rgs["rg_high"] * 100
     rg_rows = ""
@@ -184,7 +184,7 @@ def build_context(m: Model) -> dict:
 
     # Risk rows — values come from compute()["risk"] (model owns the math, incl. the
     # net-of-tax major-repair cost; render only arranges).
-    risk = m.compute()["risk"]
+    risk = computed["risk"]
     base_oop = risk["baseline"]
     scenarios = [
         ("Normal year (baseline)", 0, base_oop),
@@ -214,9 +214,6 @@ def build_context(m: Model) -> dict:
 
     # Assumptions table rows. Per-property values from p; shared from assumptions.
     appr_pcts = " / ".join(f"{val * 100:g}%" for val in APPRECIATION.values())
-    low_pct = APPRECIATION["low"] * 100
-    mod_pct = APPRECIATION["moderate"] * 100
-    high_pct = APPRECIATION["high"] * 100
     a = [
         ("Home value", f"${p.home_value:,.0f}", "Zillow Zestimate"),
         ("Cost basis", f"${p.cost_basis:,.0f}", "purchase price"),
@@ -300,50 +297,28 @@ def build_context(m: Model) -> dict:
         f'<tr><td>{name}</td><td>{val}</td><td class="sub">{src}</td></tr>' for name, val, src in a
     )
 
-    # ── Verdict prose (computed from model facts; never hand-written numbers) ──
-    v = m.compute()["verdict"]
-    hz = v["longest_horizon"]
+    # Neutral cash facts (out-of-pocket figures) — no interpretation; the report states
+    # figures and explains terms but draws no conclusion. See CLAUDE.md.
+    v = computed["cash_facts"]
 
-    if v["win_cells"] == v["total_cells"]:
-        headline_verdict = (
-            f"it's an <b>appreciation-dependent bet</b>: holding {v['verb_20']} selling at the central "
-            f"{mod_pct:g}% case (on the order of {_approx(v['central_edge'])} at 20 years), but in the "
-            f"pessimistic {low_pct:g}% case it {v['verb_low_long']} selling — and the downside is comparable "
-            "to or larger than the upside"
+    # Opportunity-rate sensitivity rows (hold vs sell at each rate, same rate both sides).
+    ors = computed["opp_rate_sensitivity"]
+    rate_rows = ""
+    for r in ors["rates"]:
+        key = f"{int(r * 100)}%"
+        rate_rows += _nw_row(
+            f'Hold <span class="sub">(opp. cost &amp; sell both at {key})</span>',
+            [ors["rows"][y][key]["hold"] for y in H],
+            cls="primary",
         )
-    elif v["win_cells"] == 0:
-        headline_verdict = (
-            "selling comes out ahead at the central case across the realistic rents once "
-            "future sale taxes and costs are counted"
-        )
-    else:
-        headline_verdict = (
-            f"the two are close at the central case — holding wins in {v['win_cells']} of "
-            f"{v['total_cells']} realistic rent/horizon combinations, and the pessimistic "
-            f"{low_pct:g}% case it {v['verb_low_long']} selling"
+        rate_rows += _nw_row(
+            f'Sell + invest @ {key} <span class="sub">(after-tax)</span>',
+            [ors["rows"][y][key]["sell"] for y in H],
+            cls="sell",
         )
 
-    take = (
-        f"At the central {mod_pct:g}% assumption, holding {v['verb_10']} selling at 10 years "
-        f"(${v['h10']:,.0f} vs ${v['best_sell_10']:,.0f}) and {v['verb_20']} it at 20 "
-        f"(${v['h20']:,.0f} vs ${v['best_sell_20']:,.0f}). The edge is contingent on appreciation: the "
-        f"pessimistic {low_pct:g}% case {v['verb_low_long']} selling at {hz} years "
-        f"(${v['hold_low_long']:,.0f} vs ${v['sell_long']:,.0f})."
-    )
-
-    bet_framing = (
-        f"Over {hz} years, holding is a leveraged bet with an <b>asymmetric payoff</b>. "
-        f"vs. selling-and-investing (${v['sell_long']:,.0f}): "
-        f"upside if SF runs hot ({high_pct:g}%) ≈ <b>{v['upside']:+,.0f}</b>; "
-        f"central case ({mod_pct:g}%) ≈ <b>{v['central_edge']:+,.0f}</b>; "
-        f"downside if SF lags ({low_pct:g}%) ≈ <b>{v['downside']:+,.0f}</b>. "
-        + (
-            "The downside loss is larger than the central-case gain — "
-            if abs(v["downside"]) > abs(v["central_edge"])
-            else ""
-        )
-        + f"and you carry ~${v['yr1_oop'] / MONTHS_PER_YEAR:,.0f}/mo of negative cash flow throughout to find out which way it breaks."
-    )
+    # Gain/loss flag for sale-side labels (factual, drives wording not judgment).
+    sells_at_loss = sell.capital_gain < 0
 
     # Everything that is raw HTML gets wrapped in Markup so autoescaping leaves it alone.
     M = Markup
@@ -355,7 +330,6 @@ def build_context(m: Model) -> dict:
         "mortgage_bal": p.mortgage_bal,
         "apr": m.apr,
         "primary_invest": PRIMARY_INVEST,
-        "aftertax_opp": AFTERTAX_OPP,
         "marginal_tax": MARGINAL_TAX,
         "cap_gains_rate": CAP_GAINS_RATE,
         "deprec_recapture_rate": DEPREC_RECAPTURE_RATE,
@@ -378,12 +352,14 @@ def build_context(m: Model) -> dict:
         "sell": sell,
         "we": we,
         "deprec_net": f"{we.deprec_release - we.recapture:+,.0f}",
+        "sells_at_loss": sells_at_loss,
         "hz_head": M(hz_head),
         "headline_rows": M(headline),
         "appr_rows": M(appr_rows),
         "rg_rows": M(rg_rows),
         "rg_low_pct": rg_low_pct,
         "rg_high_pct": rg_high_pct,
+        "rate_rows": M(rate_rows),
         "oop_head": M(oop_head),
         "oop_rows": [M(x) for x in oop_rows],
         "oop_net": M(oop_net),
@@ -399,10 +375,6 @@ def build_context(m: Model) -> dict:
         "yr10_oop": v["yr10_oop"],
         "cum_oop_10": v["cum_oop_10"],
         "reserve_cost_yr": v["reserve_cost_yr"],
-        "verb_low_long": v["verb_low_long"],
-        "headline_verdict": M(headline_verdict),
-        "take": M(take),
-        "bet_framing": M(bet_framing),
     }
 
 
@@ -422,10 +394,12 @@ def write_text_summary(mdl, ctx, path):
         f"  Value {fmt(p.home_value).strip()} | Basis {fmt(p.cost_basis).strip()} | "
         f"Loan {fmt(p.mortgage_bal).strip()} @ {mdl.apr * 100:.3f}%"
     )
+    gain_word = "loss" if sell.capital_gain < 0 else "gain"
     lines.append(
         f"\n  SELL TODAY → net proceeds {fmt(sell.net_proceeds).strip()} "
         f"(costs {fmt(sell.total_costs).strip()}, payoff {fmt(sell.payoff).strip()}); "
-        f"cap-gains tax {fmt(sell.tax).strip()} (loss)."
+        f"cap-gains tax {fmt(sell.tax).strip()} (on a {gain_word} of "
+        f"{fmt(abs(sell.capital_gain)).strip()})."
     )
     lines.append(
         f"\n  NET WORTH (rent ${p.primary_rent:,}/mo, {PRIMARY_APPRECIATION * 100:.2f}%, full rental):"
@@ -450,7 +424,7 @@ def write_text_summary(mdl, ctx, path):
         f"\n  WORKED EXAMPLE — hold {WORKED_EXAMPLE_HORIZON}yr @ ${p.primary_rent:,}, full rental: "
         f"net worth {fmt(we.net_worth).strip()}"
     )
-    lines.append(f"\n  Full reports: {OUTDIR}/report.html, {OUTDIR}/interpretation.html")
+    lines.append(f"\n  Full data report: {OUTDIR}/report.html")
     text = "\n".join(lines) + "\n"
     with open(path, "w") as f:
         f.write(text)
@@ -465,14 +439,14 @@ def main(property_path: str = DEFAULT_PROPERTY):
         autoescape=select_autoescape(["html"]),
     )
     ctx = build_context(mdl)
-    for name in ("report.html", "interpretation.html"):
-        html = env.get_template(name).render(**ctx)
-        with open(os.path.join(OUTDIR, name), "w") as f:
-            f.write(html)
+    # Generated output is DATA ONLY (numbers, sensitivities, term/mechanic explanations) —
+    # no interpretation/verdict. A separate prompt produces interpretation downstream so
+    # it isn't anchored by conclusions baked in here. See CLAUDE.md.
+    html = env.get_template("report.html").render(**ctx)
+    with open(os.path.join(OUTDIR, "report.html"), "w") as f:
+        f.write(html)
     write_text_summary(mdl, ctx, os.path.join(OUTDIR, "results.txt"))
-    print(
-        f"[wrote {OUTDIR}/report.html, {OUTDIR}/interpretation.html, {OUTDIR}/results.txt for {property_path}]"
-    )
+    print(f"[wrote {OUTDIR}/report.html, {OUTDIR}/results.txt for {property_path}]")
 
 
 if __name__ == "__main__":
