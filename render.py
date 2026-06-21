@@ -15,6 +15,7 @@ downstream so it isn't anchored by conclusions baked in here. See CLAUDE.md.
 Run:  python3 render.py   (or: make report)
 """
 
+import json
 import math
 import os
 import sys
@@ -65,6 +66,13 @@ from model import Model
 
 OUTDIR = "output"
 
+# Break-even chart geometry — ONE definition, shared by the server-rendered SVG
+# (_break_even_svg) and the live JS redraw (injected as `CHART` so static/model.js never
+# retypes these — CLAUDE.md rule 3). viewBox units; margins leave room for axis labels.
+CHART_W, CHART_HH = 640, 340
+CHART_ML, CHART_MR, CHART_MT, CHART_MB = 64, 16, 34, 40
+CHART_STEP = 500_000.0  # round $0.5M gridline spacing on the value axis
+
 # ── Small HTML row builders (return Markup so Jinja won't re-escape) ──────────
 
 
@@ -90,10 +98,11 @@ def _break_even_svg(chart: dict) -> str:
     be = chart["break_even"]
     scenarios = chart["scenarios"]
 
-    # Plot box (viewBox units). Margins leave room for axis labels; the top margin holds
-    # the SF-history reference-rate labels above the plot, clear of the data lines.
-    W, Hh = 640, 340
-    ml, mr, mt, mb = 64, 16, 34, 40
+    # Plot box (viewBox units) — geometry lives in the module CHART_* constants so the
+    # live JS redraw uses the identical box (CLAUDE.md rule 3). The top margin holds the
+    # SF-history reference-rate labels above the plot, clear of the data lines.
+    W, Hh = CHART_W, CHART_HH
+    ml, mr, mt, mb = CHART_ML, CHART_MR, CHART_MT, CHART_MB
     x0, x1 = ml, W - mr
     y0, y1 = Hh - mb, mt  # y0 = bottom (pixel), y1 = top
 
@@ -103,7 +112,7 @@ def _break_even_svg(chart: dict) -> str:
     # $0.6M and make the scale look non-linear). y_min/y_max become multiples of the step.
     raw_lo = min(min(hold), sell)
     raw_hi = max(max(hold), sell)
-    step = 500_000.0
+    step = CHART_STEP
     y_min = math.floor(raw_lo / step) * step
     y_max = math.ceil(raw_hi / step) * step
     if y_max == y_min:  # degenerate guard
@@ -474,6 +483,35 @@ def build_context(m: Model) -> dict:
             cls="sell",
         )
 
+    # ── Interactive break-even explorer payload ───────────────────────────────
+    # PARAMS = every constant/per-property number the JS engine reads (Rule 3: single
+    # source — js_params() owns them, the JS retypes nothing). CHART = the SAME geometry
+    # the server SVG uses. The JS itself is INLINED (read from disk) so the report stays a
+    # single openable/emailable file with no external fetch. The model.js engine is a
+    # tested mirror of model.py (tests/test_js_model.py) — the one no-JS exception.
+    bec = computed["break_even_chart"]
+    params_json = json.dumps(m.js_params())
+    chart_json = json.dumps(
+        {
+            "W": CHART_W,
+            "Hh": CHART_HH,
+            "ml": CHART_ML,
+            "mr": CHART_MR,
+            "mt": CHART_MT,
+            "mb": CHART_MB,
+            "step": CHART_STEP,
+            "apprGrid": bec["appr_grid"],
+            "horizon": bec["horizon"],
+            "scenarios": bec["scenarios"],
+        }
+    )
+    with open(os.path.join("static", "model.js")) as f:
+        model_js = f.read()
+    # Slider defaults = the model's base case; ranges decided tight around realistic SF.
+    slider_appr_default = PRIMARY_APPRECIATION * 100
+    slider_rent_default = RENT_GROWTH * 100
+    slider_market_default = PRIMARY_INVEST * 100
+
     # Gain/loss flag for sale-side labels (factual, drives wording not judgment).
     sells_at_loss = sell.capital_gain < 0
 
@@ -525,6 +563,14 @@ def build_context(m: Model) -> dict:
         "be_high_pct": be_high_pct,
         "be_chart_svg": M(be_chart_svg),
         "be_chart_horizon": be_chart_horizon,
+        # Interactive explorer: PARAMS/CHART are pre-serialized JSON (safe to mark Markup
+        # for inline <script>); model_js is the inlined engine. Slider defaults/ranges.
+        "params_json": M(params_json),
+        "chart_json": M(chart_json),
+        "model_js": M(model_js),
+        "slider_appr_default": slider_appr_default,
+        "slider_rent_default": slider_rent_default,
+        "slider_market_default": slider_market_default,
         "oop_head": M(oop_head),
         "oop_rows": [M(x) for x in oop_rows],
         "opex_part_rows": {k: M(v) for k, v in opex_part_rows.items()},

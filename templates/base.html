@@ -49,6 +49,17 @@
   summary { cursor:pointer; font-weight:600; color:var(--accent); }
   details[open] summary { margin-bottom:4px; }
   @media print { details { display:block; } details > *:not(summary) { display:revert; } }
+  /* Interactive break-even explorer (the one JS feature). Sliders are neutral controls;
+     the readout shows figures only — no good/bad coloring (CLAUDE.md rule 2). */
+  .sliders { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 18px; margin:6px 0 12px; }
+  @media(max-width:640px){ .sliders{grid-template-columns:1fr;} }
+  .sliders label { display:flex; flex-direction:column; font-size:13px; font-weight:600; color:var(--ink); gap:4px; }
+  .sliders input[type=range] { width:100%; accent-color:var(--accent); }
+  .slider-val { font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .readout { background:#f0f3f8; border:1px solid var(--line); border-radius:8px; padding:10px 14px;
+    margin:10px 0 0; font-size:14px; font-variant-numeric:tabular-nums; }
+  /* Sliders are interactive-only: hide them in print, where the static SVG + tables stand in. */
+  @media print { .sliders, .readout { display:none; } }
 </style>
 </head>
 <body>

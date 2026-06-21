@@ -51,10 +51,31 @@
   <p class="sub">The appreciation rate at which holding and selling end up <b>equal</b> at each horizon. Above it, holding ends
   with more; below it, less. For context, SF Case-Shiller history is {{ '%g'|format(be_low_pct) }}% / {{ '%g'|format(be_mod_pct) }}% / {{ '%g'|format(be_high_pct) }}% per year (20/10/30-yr).</p>
   <div class="card" style="margin:10px 0">
-    {{ be_chart_svg }}
+    <p class="sub" style="margin:0 0 10px"><b>Set your own assumptions.</b> Drag the three sliders to your beliefs about how the
+    home appreciates, how rent grows, and what the market returns. The Hold curve, the break-even crossing, and the readout below
+    redraw live. (The figures only — this draws no conclusion.)</p>
+
+    <div class="sliders">
+      <label>Home appreciation <span class="slider-val" id="val-appr">{{ '%g'|format(slider_appr_default) }}%</span>
+        <input type="range" id="slider-appr" min="0" max="7" step="0.1" value="{{ slider_appr_default }}"></label>
+      <label>Rent growth <span class="slider-val" id="val-rent">{{ '%g'|format(slider_rent_default) }}%</span>
+        <input type="range" id="slider-rent" min="1" max="6" step="0.1" value="{{ slider_rent_default }}"></label>
+      <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
+        <input type="range" id="slider-market" min="4" max="8" step="0.1" value="{{ slider_market_default }}"></label>
+    </div>
+
+    <noscript><p class="legend" style="margin:8px 0 0"><b>Interactive controls need JavaScript.</b> The chart below and the tables
+    further down show the same data at fixed assumption points.</p></noscript>
+
+    <!-- Live chart (JS swaps its contents). Seeded with the server-rendered SVG so it
+         shows before JS runs, when JS is off, and in print. -->
+    <div id="be-chart-live">{{ be_chart_svg }}</div>
+
+    <p id="be-readout" class="readout">Drag a slider to see the live figures.</p>
+
     <p class="legend" style="margin-top:8px">Hold wealth at {{ be_chart_horizon }} years as appreciation varies (blue) vs. the
     sell-now figure (green, flat — it doesn't depend on how the house does after you've sold). They meet at the break-even rate;
-    dashed ticks are the SF history rates.</p>
+    dashed ticks are the SF history rates; the blue dot marks the current appreciation slider value.</p>
   </div>
   <table>
     <thead><tr><th>Break-even appreciation (both sides earn {{ '%g'|format(be_opp_pct) }}% market return)</th>{{ hz_head }}</tr></thead>
@@ -232,4 +253,13 @@
     <br><br>Auto-generated on {{ generated }}. Edit per-house inputs in <code>properties/*.toml</code>
     (or shared assumptions in <code>assumptions.py</code>) and re-run to refresh.
   </div>
+
+  <!-- Interactive explorer: inject the params Python owns, the shared chart geometry, then
+       the INLINED engine (a tested mirror of model.py — tests/test_js_model.py). All inline:
+       the report stays one openable/emailable file with no external fetch. -->
+  <script>
+    globalThis.PARAMS = {{ params_json }};
+    globalThis.CHART = {{ chart_json }};
+  </script>
+  <script>{{ model_js }}</script>
 {% endblock %}
