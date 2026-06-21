@@ -6,7 +6,7 @@ Guidance for making changes here without breaking the design. Read this before e
 
 A rent-vs-sell financial model for a house. It computes whether selling now and
 investing beats renting it out and selling later, on an apples-to-apples after-tax
-basis, and renders an HTML report + interpretation page + text summary.
+basis, and renders an HTML report (data only — no interpretation; see rule 2).
 
 ## Architecture (three layers, one-way dependencies)
 

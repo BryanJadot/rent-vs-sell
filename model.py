@@ -67,8 +67,6 @@ from assumptions import (
     MONTHS_PER_YEAR,
 )
 
-DEFAULT_PROPERTY = "properties/harold-ave.toml"
-
 
 @dataclass
 class Sell:
@@ -778,7 +776,9 @@ def _main():
     import os
     import sys
 
-    path = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PROPERTY
+    if len(sys.argv) < 2:
+        sys.exit("usage: python model.py properties/<file>.toml  (the Makefile owns the default)")
+    path = sys.argv[1]
     model = Model(load_property(path))
     os.makedirs("output", exist_ok=True)
     with open("output/model_output.json", "w") as f:

@@ -61,7 +61,7 @@ from assumptions import (
     INCOME_BRACKET_THRESHOLD,
     MONTHS_PER_YEAR,
 )
-from model import Model, DEFAULT_PROPERTY
+from model import Model
 
 OUTDIR = "output"
 
@@ -378,60 +378,7 @@ def build_context(m: Model) -> dict:
     }
 
 
-def write_text_summary(mdl, ctx, path):
-    """Plain-text mirror of the headline numbers for results.txt."""
-    p = mdl.p
-    sell = ctx["sell"]
-
-    def fmt(n):
-        return f"${n:>13,.0f}"
-
-    lines = []
-    lines.append("=" * 70)
-    lines.append(f"  RENT vs. SELL — {p.address}  (generated {p.as_of_date})")
-    lines.append("=" * 70)
-    lines.append(
-        f"  Value {fmt(p.home_value).strip()} | Basis {fmt(p.cost_basis).strip()} | "
-        f"Loan {fmt(p.mortgage_bal).strip()} @ {mdl.apr * 100:.3f}%"
-    )
-    gain_word = "loss" if sell.capital_gain < 0 else "gain"
-    lines.append(
-        f"\n  SELL TODAY → net proceeds {fmt(sell.net_proceeds).strip()} "
-        f"(costs {fmt(sell.total_costs).strip()}, payoff {fmt(sell.payoff).strip()}); "
-        f"cap-gains tax {fmt(sell.tax).strip()} (on a {gain_word} of "
-        f"{fmt(abs(sell.capital_gain)).strip()})."
-    )
-    lines.append(
-        f"\n  NET WORTH (rent ${p.primary_rent:,}/mo, {PRIMARY_APPRECIATION * 100:.2f}%, full rental):"
-    )
-    lines.append("  " + "Option".ljust(26) + "".join(f"{y}yr".rjust(13) for y in HORIZONS))
-    lines.append("  " + "─" * (26 + 13 * len(HORIZONS)))
-    hold_full = [
-        mdl.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION).net_worth for y in HORIZONS
-    ]
-    lines.append(
-        "  " + "Hold (full rental)".ljust(26) + "".join(fmt(x).rjust(13) for x in hold_full)
-    )
-    for rate in INVEST_RATES:
-        row = [mdl.invest_net_worth(sell.net_proceeds, y, rate) for y in HORIZONS]
-        lines.append(
-            "  "
-            + f"Sell + invest @ {rate * 100:.0f}%".ljust(26)
-            + "".join(fmt(x).rjust(13) for x in row)
-        )
-    we = ctx["we"]
-    lines.append(
-        f"\n  WORKED EXAMPLE — hold {WORKED_EXAMPLE_HORIZON}yr @ ${p.primary_rent:,}, full rental: "
-        f"net worth {fmt(we.net_worth).strip()}"
-    )
-    lines.append(f"\n  Full data report: {OUTDIR}/report.html")
-    text = "\n".join(lines) + "\n"
-    with open(path, "w") as f:
-        f.write(text)
-    return text
-
-
-def main(property_path: str = DEFAULT_PROPERTY):
+def main(property_path: str):
     mdl = Model(load_property(property_path))
     os.makedirs(OUTDIR, exist_ok=True)
     env = Environment(
@@ -445,9 +392,10 @@ def main(property_path: str = DEFAULT_PROPERTY):
     html = env.get_template("report.html").render(**ctx)
     with open(os.path.join(OUTDIR, "report.html"), "w") as f:
         f.write(html)
-    write_text_summary(mdl, ctx, os.path.join(OUTDIR, "results.txt"))
-    print(f"[wrote {OUTDIR}/report.html, {OUTDIR}/results.txt for {property_path}]")
+    print(f"[wrote {OUTDIR}/report.html for {property_path}]")
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else DEFAULT_PROPERTY)
+    if len(sys.argv) < 2:
+        sys.exit("usage: python render.py properties/<file>.toml  (the Makefile owns the default)")
+    main(sys.argv[1])

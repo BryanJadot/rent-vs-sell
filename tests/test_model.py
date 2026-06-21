@@ -15,14 +15,15 @@ from assumptions import (
     MONTHS_PER_YEAR,
     CAP_GAINS_RATE,
 )
-from model import Model, DEFAULT_PROPERTY, excluded_gain, tax_at_sale
+from model import Model, excluded_gain, tax_at_sale
 
+HAROLD = "properties/harold-ave.toml"  # the real property under analysis
 FIXTURE = "properties/test-fixture.toml"  # synthetic: gain + positive cash flow
 
 
 @pytest.fixture
 def m():
-    return Model(load_property(DEFAULT_PROPERTY))
+    return Model(load_property(HAROLD))
 
 
 @pytest.fixture
@@ -183,8 +184,8 @@ def test_major_repair_modeled_net_of_tax(m):
 
 def test_two_properties_are_independent():
     """Two Model instances must not share state (multi-property isolation)."""
-    a = Model(load_property(DEFAULT_PROPERTY))
-    p2 = load_property(DEFAULT_PROPERTY)
+    a = Model(load_property(HAROLD))
+    p2 = load_property(HAROLD)
     p2.home_value = 2_000_000
     b = Model(p2)
     assert b.calc_sell().price == 2_000_000
@@ -292,7 +293,7 @@ def test_tax_at_sale_signs_and_components():
 @pytest.mark.parametrize(
     "prop_path,golden",
     [
-        (DEFAULT_PROPERTY, "tests/golden/harold-ave.json"),
+        (HAROLD, "tests/golden/harold-ave.json"),
         (FIXTURE, "tests/golden/test-fixture.json"),
     ],
 )

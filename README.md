@@ -5,7 +5,7 @@ A small financial model that compares two choices for a house you own:
 - **SELL** it now and invest the after-tax proceeds, vs.
 - **RENT** it out, hold, and sell later.
 
-It produces an HTML report and a plain-text summary — **data only**: figures,
+It produces an HTML report — **data only**: figures,
 sensitivities, and explanations of how each number is built. It deliberately contains
 **no interpretation** (no verdict or recommendation); interpretation is meant to be
 produced by a separate downstream prompt so it isn't anchored by baked-in conclusions.
@@ -58,7 +58,7 @@ rent growth, tax rates, risk probabilities) live in `assumptions.py`.
 | `assumptions.py` | shared market/tax/policy assumptions + the `Property` loader |
 | `model.py` | `Model` class — all financial math; `compute()` returns a dict |
 | `render.py` | presentation — builds the HTML/text from the model |
-| `templates/` | Jinja2 templates for the two HTML pages |
+| `templates/` | Jinja2 templates for the HTML report |
 | `tests/` | pytest suite locking the math invariants |
 | `output/` | generated artifacts (gitignored) |
 
