@@ -112,6 +112,7 @@ def test_compute_dict_is_complete(m):
         "rent_growth_sensitivity",
         "opp_rate_sensitivity",
         "break_even",
+        "break_even_chart",
         "worked_example",
         "risk",
         "cash_facts",
@@ -184,6 +185,21 @@ def test_break_even_appreciation_ties_hold_and_sell(m):
         ).net_worth
         sell = m.invest_net_worth(m.calc_sell().net_proceeds, y, assumptions.PRIMARY_INVEST)
         assert abs(hold - sell) < 1.0  # bisection converges to the cent
+
+
+def test_break_even_chart_series_cross_at_break_even(m):
+    """The chart's HOLD-vs-appreciation series must straddle the flat SELL line and cross
+    it at the reported break-even rate — the chart is a drawing of the same fact, so its
+    data must be internally consistent with break_even["rows"][hz]."""
+    c = m.compute()["break_even_chart"]
+    grid, hold, sell, be = c["appr_grid"], c["hold"], c["sell"], c["break_even"]
+    assert len(hold) == len(grid)
+    # SELL is appreciation-independent (a single flat value), HOLD rises with appreciation.
+    assert hold == sorted(hold)
+    # The series bracket the crossing: HOLD is below SELL at the low end, above at the high.
+    assert hold[0] < sell < hold[-1]
+    # And the reported break-even sits within the swept domain.
+    assert grid[0] <= be <= grid[-1]
 
 
 def test_two_properties_are_independent():

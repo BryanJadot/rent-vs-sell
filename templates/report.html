@@ -61,6 +61,15 @@
     <tbody>{{ be_row }}</tbody>
   </table>
 
+  <div class="card" style="margin-top:12px">
+    {{ be_chart_svg }}
+    <p class="legend" style="margin-top:8px">Hold net worth at the {{ be_chart_horizon }}-year horizon as home appreciation
+    varies (blue), against the sell-now-and-invest figure (green), which doesn't depend on how the house performs after
+    you've sold. The lines meet at the break-even rate marked above; the dashed ticks are the SF Case-Shiller history rates
+    ({{ '%g'|format(be_low_pct) }} / {{ '%g'|format(be_mod_pct) }} / {{ '%g'|format(be_high_pct) }}%). Same data as the table
+    above, drawn.</p>
+  </div>
+
   <h3>Sensitivity to appreciation</h3>
   <p class="sub">Hold at ${{ '{:g}'.format(primary_rent/1000) }}k rent (full rental) under three home-appreciation
   rates. <b>"Appreciation" = how fast the house gains value per year.</b></p>

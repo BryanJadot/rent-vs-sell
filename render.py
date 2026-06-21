@@ -75,6 +75,121 @@ def _nw_row(label_html, values, cls="", bold_last=False):
     return f'<tr class="{cls}"><td>{label_html}</td>{cells}</tr>'
 
 
+def _break_even_svg(chart: dict) -> str:
+    """Inline SVG of HOLD net worth vs. appreciation at the longest horizon, with the
+    (flat) SELL line. The two cross at the break-even rate. Drawing only — every number
+    comes from compute()'s break_even_chart; this function does no financial math, just
+    coordinate mapping. Strictly DATA: two plain lines, a marked crossing, and unlabeled
+    reference ticks for the SF history rates. NO shading or labeling of a side as better
+    (that would be a verdict — CLAUDE.md rule 2).
+    """
+    grid = chart["appr_grid"]
+    hold = chart["hold"]
+    sell = chart["sell"]
+    be = chart["break_even"]
+    scenarios = chart["scenarios"]
+
+    # Plot box (viewBox units). Margins leave room for axis labels.
+    W, Hh = 640, 320
+    ml, mr, mt, mb = 64, 16, 16, 40
+    x0, x1 = ml, W - mr
+    y0, y1 = Hh - mb, mt  # y0 = bottom (pixel), y1 = top
+
+    ax_min, ax_max = grid[0], grid[-1]  # appreciation domain (e.g. 0..0.06)
+    y_min = min(min(hold), sell)
+    y_max = max(max(hold), sell)
+    # pad the value axis a touch so lines don't touch the frame
+    pad = (y_max - y_min) * 0.06 or 1.0
+    y_min -= pad
+    y_max += pad
+
+    def px(a):  # appreciation rate -> x pixel
+        return x0 + (a - ax_min) / (ax_max - ax_min) * (x1 - x0)
+
+    def py(v):  # dollars -> y pixel
+        return y0 + (v - y_min) / (y_max - y_min) * (y1 - y0)
+
+    hold_pts = " ".join(f"{px(a):.1f},{py(v):.1f}" for a, v in zip(grid, hold))
+    sell_y = py(sell)
+
+    parts = [
+        f'<svg viewBox="0 0 {W} {Hh}" role="img" '
+        'aria-label="Hold net worth vs. appreciation, with the flat sell line; '
+        'the lines cross at the break-even appreciation rate." '
+        'style="width:100%;height:auto;font:12px system-ui,sans-serif">'
+    ]
+
+    # Axes
+    parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y0}" stroke="#bbb"/>')
+    parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x0}" y2="{y1}" stroke="#bbb"/>')
+
+    # Y gridlines + $ labels (a few round ticks)
+    yticks = 4
+    for i in range(yticks + 1):
+        v = y_min + (y_max - y_min) * i / yticks
+        yy = py(v)
+        parts.append(f'<line x1="{x0}" y1="{yy:.1f}" x2="{x1}" y2="{yy:.1f}" stroke="#eee"/>')
+        parts.append(
+            f'<text x="{x0 - 6}" y="{yy + 4:.1f}" text-anchor="end" fill="#666">'
+            f"${v / 1e6:.1f}M</text>"
+        )
+
+    # X ticks every 1% across the domain
+    a = ax_min
+    while a <= ax_max + 1e-9:
+        xx = px(a)
+        parts.append(
+            f'<text x="{xx:.1f}" y="{y0 + 18}" text-anchor="middle" fill="#666">{a * 100:g}%</text>'
+        )
+        a += 0.01
+
+    # SF history reference ticks (plain vertical dashes, unlabeled as good/bad)
+    for rate in scenarios.values():
+        if ax_min <= rate <= ax_max:
+            xx = px(rate)
+            parts.append(
+                f'<line x1="{xx:.1f}" y1="{y0}" x2="{xx:.1f}" y2="{y1}" '
+                'stroke="#cdd6e5" stroke-dasharray="3 3"/>'
+            )
+            parts.append(
+                f'<text x="{xx:.1f}" y="{y1 + 10:.1f}" text-anchor="middle" '
+                f'fill="#90a">{rate * 100:g}%</text>'
+            )
+
+    # The two data series
+    parts.append(
+        f'<line x1="{x0}" y1="{sell_y:.1f}" x2="{x1}" y2="{sell_y:.1f}" '
+        'stroke="#2a7" stroke-width="2"/>'
+    )
+    parts.append(f'<polyline points="{hold_pts}" fill="none" stroke="#36c" stroke-width="2"/>')
+
+    # Crossing point (break-even), if on-domain
+    if ax_min <= be <= ax_max:
+        bx, by = px(be), sell_y
+        parts.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="4" fill="#111"/>')
+        parts.append(
+            f'<text x="{bx:.1f}" y="{by - 10:.1f}" text-anchor="middle" fill="#111">'
+            f"break-even {be * 100:.2f}%</text>"
+        )
+
+    # Inline series labels at the right edge
+    parts.append(
+        f'<text x="{x1 - 4}" y="{py(hold[-1]) - 6:.1f}" text-anchor="end" fill="#36c">Hold</text>'
+    )
+    parts.append(
+        f'<text x="{x1 - 4}" y="{sell_y - 6:.1f}" text-anchor="end" fill="#2a7">Sell now</text>'
+    )
+
+    # Axis titles
+    parts.append(
+        f'<text x="{(x0 + x1) / 2:.0f}" y="{Hh - 4}" text-anchor="middle" fill="#444">'
+        "Home appreciation (per year)</text>"
+    )
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def build_context(m: Model) -> dict:
     p = m.p
     sell = m.calc_sell()
@@ -157,6 +272,8 @@ def build_context(m: Model) -> dict:
     be_low_pct = be["scenarios"]["low"] * 100
     be_mod_pct = be["scenarios"]["moderate"] * 100
     be_high_pct = be["scenarios"]["high"] * 100
+    be_chart_svg = _break_even_svg(computed["break_even_chart"])
+    be_chart_horizon = computed["break_even_chart"]["horizon"]
 
     # Worked example
     we = m.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
@@ -363,6 +480,8 @@ def build_context(m: Model) -> dict:
         "be_low_pct": be_low_pct,
         "be_mod_pct": be_mod_pct,
         "be_high_pct": be_high_pct,
+        "be_chart_svg": M(be_chart_svg),
+        "be_chart_horizon": be_chart_horizon,
         "oop_head": M(oop_head),
         "oop_rows": [M(x) for x in oop_rows],
         "oop_net": M(oop_net),

@@ -732,8 +732,29 @@ class Model:
             "rows": {y: self.break_even_appreciation(y) for y in H},
         }
 
-        we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
         hz = max(H)
+
+        # Break-even chart series: HOLD net worth as a function of appreciation at the
+        # longest horizon, plus the (appreciation-independent) SELL line. These two cross
+        # at break_even["rows"][hz] — the chart is just a drawing of that same fact, no new
+        # number. We sweep appr from 0% to a ceiling above the highest SF scenario so the
+        # crossing and all reference rates are on-screen. SELL is flat because once you've
+        # sold, future home appreciation can't affect the invested proceeds. Data only —
+        # render plots these points; it neither recomputes nor labels a side as "winning".
+        chart_sell = self.best_sell(hz)
+        # Sweep 0%..6% (6% = the highest SF scenario), so the chart's appreciation domain
+        # matches the reference rates and the y-range stays readable around the crossing.
+        appr_grid = [i / 200 for i in range(0, 13)]  # 0%..6% in 0.5-pt steps
+        break_even_chart = {
+            "horizon": hz,
+            "appr_grid": appr_grid,
+            "hold": [self.hold_net_worth(p.primary_rent, hz, a).net_worth for a in appr_grid],
+            "sell": chart_sell,
+            "break_even": break_even["rows"][hz],
+            "scenarios": dict(APPRECIATION),
+        }
+
+        we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
         # What a dollar at the longest horizon is worth in today's purchasing power,
         # derived from INFLATION_RATE so the report's "worth ~X today" line can never
         # drift from the constant (CLAUDE.md rule 3). Purely a reader aid — the model is
@@ -811,6 +832,7 @@ class Model:
             "rent_growth_sensitivity": rent_growth_sensitivity,
             "opp_rate_sensitivity": opp_rate_sensitivity,
             "break_even": break_even,
+            "break_even_chart": break_even_chart,
             "worked_example": asdict(we),
             "risk": risk,
             # Neutral cash FACTS only — out-of-pocket figures used by the report. The
