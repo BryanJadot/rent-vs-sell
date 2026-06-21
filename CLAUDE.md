@@ -30,7 +30,13 @@ render.py           presentation: builds HTML (templates/) + text from the model
 1. **No math in `render.py`.** If you're computing a dollar figure or a comparison,
    it belongs in `model.py`. render only formats and arranges; every number comes from
    `model.compute()` or the model's calc methods — so the page can never contradict the
-   tables.
+   tables. **One sanctioned exception:** `static/model.js` reproduces the hold/sell math
+   in the browser for the interactive break-even explorer (continuous sliders need
+   client-side compute). It is NOT a second source of truth — it is a *tested mirror* of
+   `model.py`, pinned to the Python within $1 by `tests/test_js_model.py` (run under node
+   in `make check`). render still does no math: it injects `PARAMS` (from
+   `Model.js_params()`) and inlines the engine. See "The JS mirror" below before touching
+   either side.
 
 2. **No interpretation in the generated output.** The report (and `compute()`) contain
    DATA ONLY: figures, sensitivities, and explanations of *terms and mechanics* (what
@@ -131,6 +137,29 @@ render.py           presentation: builds HTML (templates/) + text from the model
    at the first clause, the layperson reads the gloss. You pay a few words, never
    accuracy. Still bound by rule 2: a plain gloss explains *mechanics*, never verdict.
 
+## The JS mirror (`static/model.js`)
+
+The interactive break-even explorer (three sliders → live Hold-vs-Sell chart) needs to
+recompute net worth as the user drags, which only client-side JS can do smoothly. So
+`static/model.js` is a hand-port of `model.py`'s hold/sell engine — the **one** place JS
+math is allowed. Treat it as a mirror, never an independent source:
+
+- **Every number comes from `PARAMS`** (Rule 3). `Model.js_params()` dumps every constant
+  and per-property field; render injects it as `const PARAMS = {…}`. The JS retypes no
+  value Python owns. Add an input the JS reads → add it to `js_params()` too.
+- **`tests/test_js_model.py` is the drift guard.** It runs `static/model.js` under **node**
+  against Python at a grid of (appreciation, rent-growth, market-return, horizon) points
+  and **fails on any >$1 disagreement**. node missing = hard failure (not skip) — the
+  mirror must always be verified. `make check` runs it.
+- **When you change the financial math in `model.py`, change `static/model.js` to match
+  and keep that test green.** That red test is the whole reason the second copy is safe.
+- **Still bound by rules 1 and 2.** render does no math (it injects `PARAMS` + inlines the
+  engine). The live readout shows figures + a crossover year only — never a verdict.
+- **Chart geometry is shared:** the `CHART_*` constants in `render.py` drive both the
+  server-rendered SVG and the JS redraw (injected as `CHART`) — don't retype the box.
+- **The report stays one file:** `model.js` is *inlined* into the HTML (no external fetch),
+  so it opens/emails offline. Print falls back to the server-rendered SVG (sliders hidden).
+
 ## When you add a new input/knob
 
 1. Add the field to the `Property` dataclass (`assumptions.py`) if per-house, else add
@@ -141,6 +170,8 @@ render.py           presentation: builds HTML (templates/) + text from the model
 4. If it should show in the report, add it to the assumptions table in `render.py` and
    surface it via the context dict — interpolated, never hardcoded.
 5. Add/extend a test in `tests/test_model.py` if it affects the math.
+   - If the JS engine reads it, add it to `Model.js_params()` and mirror the math in
+     `static/model.js` (see "The JS mirror") — `tests/test_js_model.py` will catch drift.
 6. Run `make check` (format-check + lint + tests) and `make report`; eyeball the output.
 7. If the change moved any numbers **on purpose**, regenerate the golden snapshot
    (`make snapshot`) — see "Golden snapshots" below.
