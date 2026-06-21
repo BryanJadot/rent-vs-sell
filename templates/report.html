@@ -33,7 +33,9 @@
   <p class="sub">Total wealth each path produces at each horizon, on equal footing. The <b>Hold</b> figures
   subtract the costs <i>and</i> taxes of selling at that future date, and treat the monthly cash fed into
   the property the same way as the sell side's money (grown pre-tax, taxed once at the end). Two tax
-  treatments are shown for the future sale.</p>
+  treatments are shown for the future sale.
+  <br><span class="sub"><i>(In plain terms: money you put into the house is credited with the same market growth the
+  sold cash would have earned, so neither side gets a free head start.)</i></span></p>
   <table>
     <thead><tr><th>Option (primary {{ '%g'|format(primary_appreciation*100) }}% appreciation)</th>{{ hz_head }}</tr></thead>
     <tbody>{{ headline_rows }}</tbody>
@@ -42,6 +44,12 @@
   "Full rental" = sold as a rental, no §121 exclusion. "Hold ≤3 yrs" keeps the full ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 exclusion
   by selling before the 2-of-5-year residence test lapses (*so it only applies at ≤3 yrs). "Sell now + invest" proceeds are shown
   after-tax (investment gains taxed at sale, symmetric with the home's taxed gain).</p>
+
+  <p class="sub" style="margin-top:14px">The tables below each stress-test <b>one</b> assumption — appreciation, rent growth,
+  or the investment rate — moving it alone while everything else stays at the base case. The base ("primary") row is
+  highlighted; compare the others to it. Where a table shows only Hold rows, the matching <b>Sell now</b> figures are in
+  the headline table above (selling is unaffected by how the house performs after you've sold).</p>
+
   <h3>Break-even appreciation</h3>
   <p class="sub">The home-appreciation rate at which holding ends up <b>exactly equal</b> to selling now and
   investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate). Above this
@@ -71,10 +79,10 @@
   </table>
 
   <h3>Sensitivity to the investment / opportunity rate</h3>
-  <p class="sub">The rate at which money compounds is applied to <b>both</b> sides (the sold proceeds, and the
-  hold path's cash drain &amp; reserve). Because the sold proceeds are a smaller sum than the leveraged home,
-  the two sides respond differently to this rate — shown here at each rate, central appreciation,
-  ${{ '{:g}'.format(primary_rent/1000) }}k rent.</p>
+  <p class="sub">The investment rate is applied to <b>both</b> paths — the sold-and-invested proceeds, and the hold path's
+  cash drain &amp; reserve. Shown at each rate, central appreciation, ${{ '{:g}'.format(primary_rent/1000) }}k rent.
+  <br><span class="sub"><i>(In plain terms: the two paths put different amounts of money to work at this rate, so
+  raising it doesn't move them in lockstep.)</i></span></p>
   <table>
     <thead><tr><th>If money earns…</th>{{ hz_head }}</tr></thead>
     <tbody>{{ rate_rows }}</tbody>
