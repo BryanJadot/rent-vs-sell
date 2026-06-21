@@ -120,11 +120,9 @@ SALE_COST_RATE = BROKER_RATE + TRANSFER_TAX + TITLE_ESCROW  # ~6.43%
 # ── Investing the sale proceeds / opportunity cost ────────────────────────────
 INVEST_RATES = [0.05, 0.07]  # conservative / S&P long-run nominal
 PRIMARY_INVEST = INVEST_RATES[1]  # pre-tax rate, used for BOTH paths' compounding (7%)
-# Both paths now compound PRE-TAX at PRIMARY_INVEST and tax the gain once at the end
-# (see model.compounded_cash_flow). AFTERTAX_OPP is only a one-year DISPLAY figure —
-# the after-tax return forgone on a dollar idle for a single year (a 1-yr gain is
-# taxed in full, so the 1-yr after-tax rate equals pre-tax × (1−CG)).
-AFTERTAX_OPP = PRIMARY_INVEST * (1 - CAP_GAINS_RATE)  # ~7% × (1−37.1%) ≈ 4.4% (1-yr only)
+# Both paths compound PRE-TAX at PRIMARY_INVEST and tax the gain once at the end
+# (see model.compounded_cash_flow) — not a flat after-tax rate, which would tax the
+# opportunity every year and unfairly favor HOLD.
 
 # ── Appreciation scenarios (S&P Case-Shiller SF, FRED SFXRSA, latest 2026-03) ─
 #   2.5% = 20-yr CAGR (peak-to-now), 4.85% = 10-yr CAGR, 6% ≈ 30-yr full cycle.

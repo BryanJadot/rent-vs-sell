@@ -344,7 +344,6 @@ def build_context(m: Model) -> dict:
         "title_escrow": TITLE_ESCROW,
         "move_back_years": MOVE_BACK_YEARS,
         "sell_soon_max_years": SELL_SOON_MAX_YEARS,
-        "appreciation_low": APPRECIATION["low"],
         "longest_horizon": v["longest_horizon"],
         "worked_horizon": WORKED_EXAMPLE_HORIZON,
         "primary_appreciation": PRIMARY_APPRECIATION,
@@ -370,10 +369,6 @@ def build_context(m: Model) -> dict:
         "inc_hi": inc_hi,
         "base_oop": base_oop,
         "worst_total": worst_total,
-        "mo_oop": v["mo_oop"],
-        "yr1_oop": v["yr1_oop"],
-        "yr10_oop": v["yr10_oop"],
-        "cum_oop_10": v["cum_oop_10"],
         "reserve_cost_yr": v["reserve_cost_yr"],
     }
 

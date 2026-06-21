@@ -589,12 +589,13 @@ class Model:
         """Bundle every computed result into one plain dict — the contract render.py
         consumes, and (dumped to output/model_output.json) a standalone AUDIT artifact.
 
-        Note on scope: render.py reads the headline figures and the ["verdict"] block;
-        the full grids below (hold_grid across every §121 treatment × appreciation ×
-        rent, sell_grid, rent_rows) are produced deliberately for the audit JSON and the
-        golden-snapshot test — they let a CPA inspect/diff every cell even though the
-        report shows only a slice. They are intentional, not dead code; keep them in sync
-        with the snapshot (run `make snapshot` after an intended numeric change).
+        Note on scope: render.py reads the headline figures, the sensitivity blocks,
+        risk, and cash_facts; the full grids below (hold_grid across every §121 treatment
+        × appreciation × rent, sell_grid, rent_rows) are produced deliberately for the
+        audit JSON and the golden-snapshot test — they let a CPA inspect/diff every cell
+        even though the report shows only a slice. They are intentional, not dead code;
+        keep them in sync with the snapshot (run `make snapshot` after an intended
+        numeric change).
         """
         p = self.p
         sell = self.calc_sell()
