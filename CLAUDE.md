@@ -131,6 +131,16 @@ render.py           presentation: builds HTML (templates/) + text from the model
   (no framework). Install once per clone:
   `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`.
 
+## Commit cadence
+
+Commit logical units as you build, not in one big batch at the end. When a coherent
+piece is done and green (`make check` passes), commit it before starting the next —
+e.g. a self-cleanup, a single bug fix, or one new feature is each its own commit. This
+keeps each diff small and reviewable and ties every numeric change (and its golden-
+snapshot update) to the one reason it moved. If a change moves numbers on purpose,
+regenerate and commit the snapshot in the **same** commit. Don't bundle unrelated
+fixes; don't wait until everything is done to make the first commit.
+
 ## Golden snapshots (the numeric safety net)
 
 `tests/golden/*.json` are committed snapshots of `compute()` for each property.
