@@ -630,6 +630,68 @@ class Model:
                 hi = mid
         return (lo + hi) / 2
 
+    def js_params(self) -> dict:
+        """Every constant + per-property field the browser-side JS engine
+        (static/model.js) needs, as plain numbers — so the JS NEVER hardcodes a value
+        Python owns (CLAUDE.md rule 3). render injects this as `const PARAMS = {...}`.
+
+        Deliberately NOT part of compute()'s returned dict (so the golden snapshot stays
+        a pure record of the financial RESULTS, not the JS plumbing): render calls this
+        directly. static/model.js is a deliberate, TESTED mirror of this model's math (the
+        one sanctioned exception to the no-JS rule, for the interactive break-even
+        explorer); tests/test_js_model.py pins the JS output to Python within $1. If you
+        add an input the JS math reads, add it here too, or the JS silently goes stale.
+        """
+        p = self.p
+        return {
+            # per-property inputs
+            "home_value": p.home_value,
+            "cost_basis": p.cost_basis,
+            "building_basis": p.building_basis,
+            "mortgage_bal": p.mortgage_bal,
+            "monthly_pi": p.monthly_pi,
+            "payments_left": p.payments_left,
+            "property_tax": p.property_tax,
+            "insurance": p.insurance,
+            "repairs": p.repairs,
+            "primary_rent": p.primary_rent,
+            "cash_reserve": p.cash_reserve,
+            # derived
+            "monthly_rate": self.monthly_rate,
+            # shared market/tax/policy constants
+            "rent_growth": RENT_GROWTH,
+            "property_tax_growth": PROPERTY_TAX_GROWTH,
+            "expense_growth": EXPENSE_GROWTH,
+            "vacancy_rate": VACANCY_RATE,
+            "mgmt_rate": MGMT_RATE,
+            "tenancy_years": TENANCY_YEARS,
+            "leasing_fee_months": LEASING_FEE_MONTHS,
+            "months_per_year": MONTHS_PER_YEAR,
+            "deprec_years": DEPREC_YEARS,
+            "marginal_tax": MARGINAL_TAX,
+            "niit_rate": NIIT_RATE,
+            "deprec_recapture_rate": DEPREC_RECAPTURE_RATE,
+            "cap_gains_rate": CAP_GAINS_RATE,
+            "cg_exclusion": CG_EXCLUSION,
+            "sell_soon_max_years": SELL_SOON_MAX_YEARS,
+            "passive_loss_usable_yearly": PASSIVE_LOSS_USABLE_YEARLY,
+            "reserve_rate": RESERVE_RATE,
+            "bad_vacancy_months": BAD_VACANCY_MONTHS,
+            "eviction_cost": EVICTION_COST,
+            "major_repair": MAJOR_REPAIR,
+            "risk_vacancy_prob": RISK_VACANCY_PROB,
+            "risk_eviction_prob": RISK_EVICTION_PROB,
+            "risk_repair_prob": RISK_REPAIR_PROB,
+            "broker_rate": BROKER_RATE,
+            "transfer_tax": TRANSFER_TAX,
+            "title_escrow": TITLE_ESCROW,
+            "sale_cost_rate": SALE_COST_RATE,
+            "invest_rates": list(INVEST_RATES),
+            "primary_invest": PRIMARY_INVEST,
+            "primary_appreciation": PRIMARY_APPRECIATION,
+            "horizons": list(HORIZONS),
+        }
+
     # ── Compute: bundle everything into a plain dict ───────────────────────────
     def compute(self) -> dict:
         """Bundle every computed result into one plain dict — the contract render.py
