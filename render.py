@@ -15,6 +15,7 @@ downstream so it isn't anchored by conclusions baked in here. See CLAUDE.md.
 Run:  python3 render.py   (or: make report)
 """
 
+import math
 import os
 import sys
 
@@ -89,19 +90,24 @@ def _break_even_svg(chart: dict) -> str:
     be = chart["break_even"]
     scenarios = chart["scenarios"]
 
-    # Plot box (viewBox units). Margins leave room for axis labels.
-    W, Hh = 640, 320
-    ml, mr, mt, mb = 64, 16, 16, 40
+    # Plot box (viewBox units). Margins leave room for axis labels; the top margin holds
+    # the SF-history reference-rate labels above the plot, clear of the data lines.
+    W, Hh = 640, 340
+    ml, mr, mt, mb = 64, 16, 34, 40
     x0, x1 = ml, W - mr
     y0, y1 = Hh - mb, mt  # y0 = bottom (pixel), y1 = top
 
     ax_min, ax_max = grid[0], grid[-1]  # appreciation domain (e.g. 0..0.06)
-    y_min = min(min(hold), sell)
-    y_max = max(max(hold), sell)
-    # pad the value axis a touch so lines don't touch the frame
-    pad = (y_max - y_min) * 0.06 or 1.0
-    y_min -= pad
-    y_max += pad
+    # Snap the value axis to round $0.5M gridlines so the labels read cleanly and the
+    # spacing is even (placing ticks at even *pixels* would give ugly values like $0.1M /
+    # $0.6M and make the scale look non-linear). y_min/y_max become multiples of the step.
+    raw_lo = min(min(hold), sell)
+    raw_hi = max(max(hold), sell)
+    step = 500_000.0
+    y_min = math.floor(raw_lo / step) * step
+    y_max = math.ceil(raw_hi / step) * step
+    if y_max == y_min:  # degenerate guard
+        y_max = y_min + step
 
     def px(a):  # appreciation rate -> x pixel
         return x0 + (a - ax_min) / (ax_max - ax_min) * (x1 - x0)
@@ -123,15 +129,17 @@ def _break_even_svg(chart: dict) -> str:
     parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y0}" stroke="#bbb"/>')
     parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x0}" y2="{y1}" stroke="#bbb"/>')
 
-    # Y gridlines + $ labels (a few round ticks)
-    yticks = 4
-    for i in range(yticks + 1):
-        v = y_min + (y_max - y_min) * i / yticks
+    # Y gridlines + $ labels at every round $0.5M step (even, clean values)
+    n_steps = round((y_max - y_min) / step)
+    for i in range(n_steps + 1):
+        v = y_min + i * step
         yy = py(v)
         parts.append(f'<line x1="{x0}" y1="{yy:.1f}" x2="{x1}" y2="{yy:.1f}" stroke="#eee"/>')
+        # Format as −$0.5M / $1.0M (minus BEFORE the dollar sign, using a real minus glyph)
+        m_val = v / 1e6
+        label = f"−${abs(m_val):.1f}M" if m_val < 0 else f"${m_val:.1f}M"
         parts.append(
-            f'<text x="{x0 - 6}" y="{yy + 4:.1f}" text-anchor="end" fill="#666">'
-            f"${v / 1e6:.1f}M</text>"
+            f'<text x="{x0 - 6}" y="{yy + 4:.1f}" text-anchor="end" fill="#666">{label}</text>'
         )
 
     # X ticks every 1% across the domain
@@ -143,7 +151,9 @@ def _break_even_svg(chart: dict) -> str:
         )
         a += 0.01
 
-    # SF history reference ticks (plain vertical dashes, unlabeled as good/bad)
+    # SF history reference ticks (plain vertical dashes, unlabeled as good/bad). Labels
+    # sit in the top margin above the plot; the one nearest the right edge is end-anchored
+    # so it doesn't overflow or collide with the right frame.
     for rate in scenarios.values():
         if ax_min <= rate <= ax_max:
             xx = px(rate)
@@ -151,8 +161,10 @@ def _break_even_svg(chart: dict) -> str:
                 f'<line x1="{xx:.1f}" y1="{y0}" x2="{xx:.1f}" y2="{y1}" '
                 'stroke="#cdd6e5" stroke-dasharray="3 3"/>'
             )
+            anchor = "end" if xx > x1 - 24 else "middle"
+            lx = x1 if anchor == "end" else xx
             parts.append(
-                f'<text x="{xx:.1f}" y="{y1 + 10:.1f}" text-anchor="middle" '
+                f'<text x="{lx:.1f}" y="{y1 - 10:.1f}" text-anchor="{anchor}" '
                 f'fill="#90a">{rate * 100:g}%</text>'
             )
 
@@ -172,12 +184,13 @@ def _break_even_svg(chart: dict) -> str:
             f"break-even {be * 100:.2f}%</text>"
         )
 
-    # Inline series labels at the right edge
+    # Inline series labels at the LEFT edge of each line — the Hold line starts low here, so
+    # they sit clear of the data, the crossing label, and the top-right reference ticks.
     parts.append(
-        f'<text x="{x1 - 4}" y="{py(hold[-1]) - 6:.1f}" text-anchor="end" fill="#36c">Hold</text>'
+        f'<text x="{x0 + 6}" y="{py(hold[0]) - 8:.1f}" text-anchor="start" fill="#36c">Hold</text>'
     )
     parts.append(
-        f'<text x="{x1 - 4}" y="{sell_y - 6:.1f}" text-anchor="end" fill="#2a7">Sell now</text>'
+        f'<text x="{x0 + 6}" y="{sell_y - 8:.1f}" text-anchor="start" fill="#2a7">Sell now</text>'
     )
 
     # Axis titles
@@ -228,14 +241,15 @@ def build_context(m: Model) -> dict:
             cls="sell",
         )
 
-    # Appreciation sensitivity rows (pills/notes derived from assumptions)
-    pill_by_key = {"low": "bad", "moderate": "warn", "high": "good"}
+    # Appreciation sensitivity rows. Pills are NEUTRAL (one style for all) — they label
+    # which end of the SF history each rate is, not a good/bad valence; a red "bad" /
+    # green "good" pill would steer the reader toward a verdict (CLAUDE.md rule 2).
     appr_rows = ""
     for key, appr in APPRECIATION.items():
         vals = [m.hold_net_worth(p.primary_rent, y, appr).net_worth for y in H]
         cls = "primary" if abs(appr - PRIMARY_APPRECIATION) < 1e-9 else ""
         lbl = (
-            f'{appr * 100:g}%/yr <span class="pill {pill_by_key[key]}">{APPRECIATION_TAGS[key]}</span> '
+            f'{appr * 100:g}%/yr <span class="pill">{APPRECIATION_TAGS[key]}</span> '
             f'<span class="sub">{APPRECIATION_NOTES[key]}</span>'
         )
         appr_rows += _nw_row(lbl, vals, cls=cls)
