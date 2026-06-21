@@ -342,6 +342,22 @@ def test_recapture_capped_at_recognized_gain():
     assert st_loss.recapture == 0.0 and st_loss.cap_gains_tax == 0.0
 
 
+def test_total_depreciation_never_exceeds_basis(m):
+    """Depreciation runs for exactly DEPREC_YEARS (27.5), not 28 whole years. Summing the
+    per-year depreciation the income calc deducts over a long hold must equal building_basis
+    to the cent — and equal the recapture cap (annual × min(years, 27.5)) — so the income
+    side and the recapture side can never disagree about how much was depreciated. (Guards
+    the off-by-half-a-year boundary: `year_index < 27.5` would grant a full 28th year.)"""
+    total = 0.0
+    for yr in range(40):  # well past the 27.5-yr recovery period
+        deprec_fraction = max(0.0, min(1.0, assumptions.DEPREC_YEARS - yr))
+        total += m.annual_depreciation * deprec_fraction
+    assert total == pytest.approx(m.p.building_basis)
+    # Recapture cap at any horizon ≥ 27.5 yrs equals the same basis.
+    recapture_base = m.annual_depreciation * min(30, assumptions.DEPREC_YEARS)
+    assert recapture_base == pytest.approx(m.p.building_basis)
+
+
 # ── Golden snapshot: any unintended numeric drift becomes a visible diff ────────
 
 

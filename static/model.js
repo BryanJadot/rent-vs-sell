@@ -122,7 +122,11 @@ function taxableRentalIncome(P, monthlyRent, yearIndex, interestYr, rentGrowth) 
   // Mirror of Model._taxable_rental_income (only interest deductible; deprec stops at 27.5y).
   const rentThisYr = monthlyRent * Math.pow(1 + rentGrowth, yearIndex);
   const r = calcRent(P, rentThisYr, yearIndex);
-  const deprec = yearIndex < P.deprec_years ? annualDepreciation(P) : 0.0;
+  // Depreciation runs for exactly DEPREC_YEARS (27.5), not 28 whole years: the final year
+  // carries only its fractional remainder so total deductions == building_basis, matching
+  // the recapture cap. (Mirror of model.py _taxable_rental_income.)
+  const deprecYrsThisYear = Math.max(0.0, Math.min(1.0, P.deprec_years - yearIndex));
+  const deprec = annualDepreciation(P) * deprecYrsThisYear;
   return r.egi - r.op - interestYr - deprec;
 }
 

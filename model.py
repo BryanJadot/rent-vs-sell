@@ -433,10 +433,20 @@ class Model:
         """One year's TAXABLE rental income = rent − op-ex − mortgage INTEREST −
         depreciation. (Only interest is deductible, not principal; depreciation stops
         after the 27.5-yr recovery period.) Negative => a tax loss that year. Distinct
-        from _year_cash_flow, which is ECONOMIC cash (uses full P&I, no depreciation)."""
+        from _year_cash_flow, which is ECONOMIC cash (uses full P&I, no depreciation).
+
+        Depreciation runs straight-line for exactly DEPREC_YEARS (27.5) — NOT 27.5 *whole*
+        years. Total deductible depreciation can never exceed building_basis. With integer
+        year indices, `year_index < 27.5` would grant a FULL 28th year (indices 0..27),
+        depreciating ~half a year's worth ($9,782 here) MORE than basis — a deduction with
+        no basis behind it, and one the recapture cap (which tops out at min(years, 27.5))
+        would never claw back. So the final year carries only its FRACTIONAL remainder:
+        full deduction for indices 0..26, half a year at index 27, $0 after — summing to
+        exactly 27.5 × annual = building_basis, in lockstep with the recapture cap."""
         rent_this_yr = monthly_rent * (1 + self.rent_growth) ** year_index
         r = self.calc_rent(rent_this_yr, year_index=year_index)
-        deprec = self.annual_depreciation if year_index < DEPREC_YEARS else 0.0
+        deprec_yrs_this_year = max(0.0, min(1.0, DEPREC_YEARS - year_index))
+        deprec = self.annual_depreciation * deprec_yrs_this_year
         return r.egi - r.op_expenses - interest_yr - deprec
 
     def _profit_year_taxes(self, monthly_rent: float, years: int) -> list[float]:
