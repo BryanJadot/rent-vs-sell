@@ -1,0 +1,32 @@
+# Per-property inputs for the rent-vs-sell model.
+# Copy this file for another house and edit the values; the shared model assumptions
+# (tax rates, market appreciation, risk probabilities) live in assumptions.py.
+# Run:  make report PROPERTY=properties/harold-ave.toml
+
+address = "15 Harold Ave, San Francisco, CA 94112"
+
+# Analysis date is PINNED so re-running later doesn't silently shift time-dependent
+# inputs like years_owned_as_residence. Update deliberately when you refresh inputs.
+as_of_date = "2026-06-21"
+
+# ── Property & loan ───────────────────────────────────────────────────────────
+home_value    = 1_495_200      # current Zillow Zestimate
+cost_basis    = 1_550_000      # purchase price (here: Nov 2021) — basis for gain/loss
+mortgage_bal  = 1_102_902.48   # remaining principal
+monthly_pi    = 4_739.86       # mortgage payment (principal + interest)
+payments_left = 306            # months remaining on the loan
+years_owned_as_residence = 4.5 # yrs lived in as primary residence before any rental (for §121)
+
+# ── Holding costs (annual, year-1; they grow over time per assumptions.py) ────
+property_tax = 17_365.28       # = $1.4M negotiated assessed value × 1.24037714% effective rate;
+                               #   grows at the 2% Prop 13 cap per assumptions.py (PROPERTY_TAX_GROWTH)
+insurance    = 3_070.00        # e.g. $2,390 home + $680 umbrella
+repairs      = 8_000.00        # year-1 maintenance/repairs
+
+# ── Rent (your local comps) ───────────────────────────────────────────────────
+rent_levels     = [4_500, 5_000, 5_500, 6_000]   # comps to evaluate
+realistic_rents = [5_000, 5_500]                 # featured in the report
+primary_rent    = 5_000
+
+# ── Risk buffer ───────────────────────────────────────────────────────────────
+cash_reserve = 50_000          # landlord buffer you'd set aside

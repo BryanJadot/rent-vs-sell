@@ -1,0 +1,36 @@
+[project]
+name = "rent-vs-sell"
+version = "0.1.0"
+description = "Rent-vs-sell financial model and report generator (per-property TOML inputs)"
+requires-python = ">=3.11"
+dependencies = [
+    "jinja2>=3.1",
+]
+
+[project.scripts]
+# `rent-vs-sell-model`  -> writes output/model_output.json
+# `rent-vs-sell-report` -> writes output/report.html + interpretation.html + results.txt
+rent-vs-sell-model = "model:_main"
+rent-vs-sell-report = "render:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# Flat modules, not a package directory.
+include = ["model.py", "render.py", "assumptions.py", "templates"]

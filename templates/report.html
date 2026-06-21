@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Rent vs. Sell — Data — 15 Harold Ave{% endblock %}
+{% block body %}
+  <h1>Rent vs. Sell — Data &amp; Numbers</h1>
+  <p class="sub">{{ address }} (Ingleside) · 3bd / 2ba SFR · auto-generated {{ generated }}</p>
+  <div class="nav">📊 This page = the computed numbers (no opinions).
+     For verdicts, questions &amp; next steps see → <a href="interpretation.html">interpretation.html</a></div>
+
+  <div class="card"><div class="grid">
+    <div><div class="sub">Current value (Zestimate)</div><b>${{ '{:,.0f}'.format(home_value) }}</b></div>
+    <div><div class="sub">Purchase price (Nov 2021)</div><b>${{ '{:,.0f}'.format(cost_basis) }}</b> <span class="pill bad">below basis</span></div>
+    <div><div class="sub">Mortgage balance</div><b>${{ '{:,.0f}'.format(mortgage_bal) }}</b></div>
+    <div><div class="sub">Mortgage rate (derived)</div><b>{{ '%.3f'|format(apr*100) }}%</b> <span class="pill good">far below market</span></div>
+  </div></div>
+
+  <!-- 1. NET WORTH -->
+  <h2>1. Net worth over time — fully-loaded comparison</h2>
+  <p class="sub">Total wealth each path produces at each horizon, on equal footing. The <b>Hold</b> figures
+  subtract the costs <i>and</i> taxes of selling at that future date, and treat the monthly cash you feed
+  the property as money you couldn't invest (charged the after-tax opportunity cost). Two tax treatments
+  are shown for the future sale.</p>
+  <table>
+    <thead><tr><th>Option (primary 4.85% appreciation)</th>{{ hz_head }}</tr></thead>
+    <tbody>{{ headline_rows }}</tbody>
+  </table>
+  <p class="legend">Net worth in dollars at each horizon, after all costs and taxes of the eventual sale.
+  "Full rental" = sold as a rental, no §121 exclusion. "Hold ≤3 yrs" keeps the full $250k §121 exclusion
+  by selling before the 2-of-5-year residence test lapses (*so it only applies at ≤3 yrs). "Move back" =
+  re-occupy 2 years before selling to reclaim a prorated exclusion. "Sell now + invest" proceeds are shown
+  after-tax (investment gains taxed at sale, symmetric with the home's taxed gain).</p>
+
+  <h3>How sensitive is "Hold" to appreciation?</h3>
+  <p class="sub">Appreciation is the one input you can't control and it drives everything. Below: hold at
+  ${{ '{:g}'.format(primary_rent/1000) }}k rent (full rental), under three home-appreciation rates.
+  <b>"Appreciation" = how fast the house itself gains value per year.</b></p>
+  <table>
+    <thead><tr><th>If the home appreciates…</th>{{ hz_head }}</tr></thead>
+    <tbody>{{ appr_rows }}</tbody>
+  </table>
+
+  <h3>How a "Hold" number is built (10-yr, $5k rent, full rental)</h3>
+  <p class="sub">Every component of the ${{ '{:,.0f}'.format(we.net_worth) }} figure, so it's fully traceable:</p>
+  <table>
+    <thead><tr><th>Component</th><th>Amount</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td>Future home value</td><td class="num-good">+{{ '{:,.0f}'.format(we.future_value) }}</td><td class="sub">$1.495M growing 4.85%/yr × 10</td></tr>
+      <tr><td>− Remaining loan balance</td><td class="num-bad">−{{ '{:,.0f}'.format(we.remaining_loan) }}</td><td class="sub">still owed after 10 yrs of payments</td></tr>
+      <tr><td>− Selling costs at future sale</td><td class="num-bad">−{{ '{:,.0f}'.format(we.sale_costs) }}</td><td class="sub">~6.4% broker+transfer+title on the future price</td></tr>
+      <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
+      <tr><td>± Cash flow (compounded {{ '%.1f'|format(aftertax_opp*100) }}% after-tax)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">10 yrs of feeding the property, at after-tax opportunity cost</td></tr>
+      <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
+      <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + CA ordinary ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
+      <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
+      <tr><td>− Reserve opportunity cost</td><td class="num-bad">−{{ '{:,.0f}'.format(we.reserve_opp_cost) }}</td><td class="sub">${{ '{:,.0f}'.format(cash_reserve) }} reserve idle in cash</td></tr>
+      <tr class="total"><td>= Net worth at 10 yrs</td><td><b>{{ '{:,.0f}'.format(we.net_worth) }}</b></td><td></td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn">
+    <b>The rental-tax machinery roughly washes out for you.</b> While renting, the property runs a
+    <i>tax</i> loss each year (rent minus operating costs, mortgage interest, and ~${{ '{:,.0f}'.format(annual_depreciation) }}/yr
+    depreciation). Because your income is &gt;$150k those losses are suspended and <b>released at sale</b>,
+    deducted at your {{ '%.0f'|format(marginal_tax*100) }}% rate (+${{ '{:,.0f}'.format(we.deprec_release) }}). But the IRS then <b>recaptures</b>
+    the depreciation at {{ '%.1f'|format(deprec_recapture_rate*100) }}% (fed 25% + CA ordinary) (−${{ '{:,.0f}'.format(we.recapture) }}). Net of
+    the two: <b>{{ deprec_net }}</b> — essentially a wash, because California taxes
+    recapture as ordinary income at nearly the same rate you deduct at. None of it helps monthly cash flow;
+    it only lands at sale. <i>This interaction is genuinely complex — confirm with a CPA.</i>
+  </div>
+
+  <h3>How the "Sell today" number is built</h3>
+  <table>
+    <tbody>
+      <tr><td>Sale price (Zestimate)</td><td>${{ '{:,.0f}'.format(sell.price) }}</td><td class="sub"></td></tr>
+      <tr><td>− Broker commission (5%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.broker) }}</td><td class="sub">2.5% listing + 2.5% buyer agent</td></tr>
+      <tr><td>− SF transfer tax (0.68%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.transfer) }}</td><td class="sub">$1M–$5M band</td></tr>
+      <tr><td>− Title / escrow / misc (0.75%)</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.title) }}</td><td class="sub">recording, escrow, etc.</td></tr>
+      <tr><td>− Mortgage payoff</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.payoff) }}</td><td class="sub">remaining balance</td></tr>
+      <tr class="total"><td>= Net cash proceeds</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_proceeds) }}</td><td></td></tr>
+      <tr><td>Capital gain</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.capital_gain|abs) }}</td><td class="sub">a loss vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis</td></tr>
+      <tr><td>Capital gains tax</td><td>${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">$0 — sold at a loss</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 2. CASH FLOW -->
+  <h2>2. Monthly cash flow — what you'd actually spend</h2>
+  <p class="sub">Real cash in/out of your bank account per year, at year-1 rent.</p>
+  <table>
+    <thead><tr><th>Cash item</th>{{ oop_head }}</tr></thead>
+    <tbody>
+      <tr><td>Rent collected (net of vacancy)</td>{{ oop_rows[0] }}</tr>
+      <tr><td>Mortgage payment (P&amp;I)</td>{{ oop_rows[1] }}</tr>
+      <tr><td>Tax / insurance / repairs / mgmt</td>{{ oop_rows[2] }}</tr>
+      <tr><td>Depreciation refund <span class="pill warn">suspended</span></td>{{ oop_rows[3] }}</tr>
+      <tr class="total"><td>NET OUT OF POCKET / yr</td>{{ oop_net }}</tr>
+      <tr class="total"><td>…per month</td>{{ oop_mo }}</tr>
+    </tbody>
+  </table>
+  <p class="sub"><b>Selling instead</b> pays you <b>+${{ '{:,.0f}'.format(inc_lo/12) }}/mo</b> (proceeds at 5%) or
+  <b>+${{ '{:,.0f}'.format(inc_hi/12) }}/mo</b> (at 7%), nothing out of pocket. Monthly swing vs. holding ≈
+  <b>${{ '{:,.0f}'.format((-base_oop + inc_lo)/12) }}–{{ '{:,.0f}'.format((-base_oop + inc_hi)/12) }}</b>.
+  Note: higher rent = smaller drain (more rent, same mortgage).</p>
+
+  <!-- 3. RISK -->
+  <h2>3. The landlord risk — a bad year</h2>
+  <p class="sub">Each row's "Total" already includes the −${{ '{:,.0f}'.format(-base_oop) }} baseline, so the rows are
+  <b>not</b> additive — the worst case at the bottom is the one to plan around.</p>
+  <table>
+    <thead><tr><th>Scenario (at $5k rent)</th><th>Extra hit</th><th>Total out of pocket</th></tr></thead>
+    <tbody>{{ risk_rows }}</tbody>
+  </table>
+  <div class="callout bad">
+    <b>⚠️ Reserve survival test.</b> Your ~${{ '{:,.0f}'.format(cash_reserve) }} landlord buffer covers a <b>normal</b> year
+    (${{ '{:,.0f}'.format(-base_oop) }} drain) but <b>not</b> a worst-case year (~${{ '{:,.0f}'.format(-worst_total) }}) — short by
+    ~${{ '{:,.0f}'.format(-worst_total - cash_reserve) }}, forcing you to pull from other savings or sell under pressure. Over a
+    10–20 year hold, plan as if a bad year <b>will</b> happen once or twice. And a reserve sitting in cash
+    forgoes ~${{ '{:,.0f}'.format(cash_reserve*primary_invest) }}/yr of market returns — a real, uncounted cost of holding.
+  </div>
+
+  <!-- 4. ASSUMPTIONS -->
+  <h2>4. Every assumption, and where it came from</h2>
+  <table>
+    <thead><tr><th>Assumption</th><th>Value</th><th>Source / rationale</th></tr></thead>
+    <tbody>{{ assumption_rows }}</tbody>
+  </table>
+
+  <div class="foot">
+    <b>Still simplified — verify with professionals.</b> Cap-gains and recapture rates are applied as flat
+    effective rates (real brackets are graduated and interact with your other income that year). The
+    "move back" §121 proration is approximated. Both sides are treated <b>after-tax and symmetrically</b>:
+    the Sell portfolio's gains are taxed at sale, and the Hold path's negative cash flow is charged the
+    <b>after-tax</b> opportunity cost ({{ '%.1f'|format(aftertax_opp*100) }}%), not the pre-tax {{ '%.0f'|format(primary_invest*100) }}%.
+    Not modeled: inflation, rent-control limits on increases, the time/stress cost of landlording, and
+    (in the low-appreciation scenario) rent still grows {{ '%g'|format(rent_growth*100) }}%/yr, which flatters that downside case.
+    <br><br>Auto-generated on {{ generated }}. Edit inputs in <code>assumptions.py</code> and re-run to refresh.
+    Interpretation, questions &amp; next steps → <a href="interpretation.html">interpretation.html</a>.
+  </div>
+{% endblock %}
