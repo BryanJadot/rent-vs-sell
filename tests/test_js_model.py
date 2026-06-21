@@ -30,7 +30,7 @@ FIXTURE = "properties/test-fixture.toml"
 APPRS = [0.0, 0.025, 0.0485, 0.06, 0.07]
 RENT_GROWTHS = [0.01, 0.03, 0.0485, 0.06]
 MARKETS = [0.04, 0.05, 0.07, 0.08, 0.10]  # spans the slider range (market return 4–10%)
-HORIZONS = [3, 5, 10, 15, 20]
+HORIZONS = [3, 5, 10, 15, 20, 25, 30]  # spans the 0–30yr time axis, incl. past loan payoff
 
 # A node driver that loads the engine, reads sample points from stdin, and prints the
 # JS HOLD/SELL net worth for each — kept inline so the test is self-contained.

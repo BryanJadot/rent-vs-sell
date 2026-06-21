@@ -47,13 +47,14 @@
   keeps the ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale break — it lapses once you've rented past the 2-of-5-year
   residence test. "Sell now + invest" is shown after-tax, the same way the home's gain is taxed.</p>
 
-  <h3>Break-even: how fast the house must grow</h3>
-  <p class="sub">The appreciation rate at which holding and selling end up <b>equal</b> at each horizon. Above it, holding ends
-  with more; below it, less. For context, SF Case-Shiller history is {{ '%g'|format(be_low_pct) }}% / {{ '%g'|format(be_mod_pct) }}% / {{ '%g'|format(be_high_pct) }}% per year (20/10/30-yr).</p>
+  <h3>Hold vs. Sell over time — set your own assumptions</h3>
+  <p class="sub">How each path's total wealth grows with the number of years you hold before selling. For context, SF Case-Shiller
+  appreciation history is {{ '%g'|format(be_low_pct) }}% / {{ '%g'|format(be_mod_pct) }}% / {{ '%g'|format(be_high_pct) }}% per year (20/10/30-yr).</p>
   <div class="card" style="margin:10px 0">
     <p class="sub" style="margin:0 0 10px"><b>Set your own assumptions.</b> Drag the three sliders to your beliefs about how the
-    home appreciates, how rent grows, and what the market returns. The Hold curve, the break-even crossing, and the readout below
-    redraw live. (The figures only — this draws no conclusion.)</p>
+    home appreciates, how rent grows, and what the market returns. Both curves, where they cross, and the table and readout below
+    redraw live. (Figures only — this draws no conclusion.) Held fixed: rent at ${{ '{:g}'.format(primary_rent/1000) }}k/mo and a
+    full-rental sale (no §121); vary those in the tables further down.</p>
 
     <div class="sliders">
       <label>Home appreciation <span class="slider-val" id="val-appr">{{ '%g'|format(slider_appr_default) }}%</span>
@@ -79,9 +80,9 @@
 
     <p id="be-readout" class="readout">Drag a slider to see the live figures.</p>
 
-    <p class="legend" style="margin-top:8px">Hold wealth at {{ be_chart_horizon }} years as appreciation varies (blue) vs. the
-    sell-now figure (green, flat — it doesn't depend on how the house does after you've sold). They meet at the break-even rate;
-    dashed ticks are the SF history rates; the blue dot marks the current appreciation slider value.</p>
+    <p class="legend" style="margin-top:8px">Each curve is total wealth at that holding length: <b>Hold</b> (blue, keep &amp; rent
+    then sell) vs. <b>Sell now</b> (green, sell today and invest the proceeds). The black dot marks where they cross; the dashed
+    tick is the year the mortgage is paid off (the Hold curve bends there as the P&amp;I payment ends).</p>
   </div>
   <table>
     <thead><tr><th>Break-even appreciation (both sides earn {{ '%g'|format(be_opp_pct) }}% market return)</th>{{ hz_head }}</tr></thead>

@@ -800,24 +800,45 @@ class Model:
 
         hz = max(H)
 
-        # Break-even chart series: HOLD net worth as a function of appreciation at the
-        # longest horizon, plus the (appreciation-independent) SELL line. These two cross
-        # at break_even["rows"][hz] — the chart is just a drawing of that same fact, no new
-        # number. We sweep appr from 0% to a ceiling above the highest SF scenario so the
-        # crossing and all reference rates are on-screen. SELL is flat because once you've
-        # sold, future home appreciation can't affect the invested proceeds. Data only —
-        # render plots these points; it neither recomputes nor labels a side as "winning".
-        chart_sell = self.best_sell(hz)
-        # Sweep 0%..6% (6% = the highest SF scenario), so the chart's appreciation domain
-        # matches the reference rates and the y-range stays readable around the crossing.
-        appr_grid = [i / 200 for i in range(0, 13)]  # 0%..6% in 0.5-pt steps
+        # Wealth-over-time chart series: HOLD and SELL net worth as functions of the holding
+        # period (years), both at the base case (primary appreciation/rent/opp rate). Unlike
+        # the old appreciation-sweep, BOTH curves move with the three slider axes in the live
+        # version (appreciation, rent growth, market return) — so dragging any of them shifts
+        # where they cross. The crossover year is where HOLD first overtakes/falls behind
+        # SELL. Data only — render plots these points; it labels no side as "winning".
+        #
+        # The mortgage pays off at payments_left/12 years; past that the HOLD curve bends
+        # (P&I drops to 0). We surface the payoff year so the chart can mark it, explaining
+        # the kink rather than leaving it mysterious. Derived from payments_left — no magic.
+        year_grid = list(range(0, hz + 1))  # 0..hz inclusive, yearly steps
+        chart_hold = [
+            self.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION).net_worth
+            for y in year_grid
+        ]
+        # SELL at the SINGLE primary market rate (not best_sell's max-over-INVEST_RATES):
+        # the live chart's market-return slider IS this rate, so the server-seeded curve must
+        # use one rate too, or the static first-paint would disagree with the JS redraw. At
+        # the base case PRIMARY_INVEST is the top INVEST_RATE, so the two coincide there.
+        chart_sell = [self.invest_net_worth(np_, y, PRIMARY_INVEST) for y in year_grid]
+        # Crossover year: the first year where sign(HOLD − SELL) differs from year 1's sign.
+        # A neutral fact (when the two lines meet), not a verdict about which is preferable.
+        diffs = [h - s for h, s in zip(chart_hold, chart_sell)]
+        crossover_year = None
+        if len(diffs) > 1:
+            sign1 = 1 if diffs[1] >= 0 else -1
+            for y in range(2, len(diffs)):
+                cur = 1 if diffs[y] >= 0 else -1
+                if cur != sign1:
+                    crossover_year = y
+                    break
+        payoff_year = p.payments_left / MONTHS_PER_YEAR
         break_even_chart = {
             "horizon": hz,
-            "appr_grid": appr_grid,
-            "hold": [self.hold_net_worth(p.primary_rent, hz, a).net_worth for a in appr_grid],
+            "year_grid": year_grid,
+            "hold": chart_hold,
             "sell": chart_sell,
-            "break_even": break_even["rows"][hz],
-            "scenarios": dict(APPRECIATION),
+            "crossover_year": crossover_year,
+            "payoff_year": payoff_year,
         }
 
         we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)

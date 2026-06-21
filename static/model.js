@@ -286,18 +286,39 @@ if (typeof document !== "undefined") {
   const fmtDollars = (v) =>
     (v < 0 ? "−$" : "$") + Math.abs(Math.round(v)).toLocaleString("en-US");
 
-  // Mirror of render._break_even_svg coordinate mapping. Pure string-building; no math
-  // that affects the model — the model numbers come from the engine above.
-  function buildSvg(appr, rentGrowth, marketRate) {
-    const grid = C.apprGrid;
-    const years = C.horizon;
+  // Hold & Sell net worth over the holding period at the current slider values, for every
+  // year 0..horizon. BOTH curves move with all three sliders (so dragging any of them
+  // shifts the crossing). Mirror of model.compute()'s break_even_chart construction.
+  function timeSeries(appr, rentGrowth, marketRate) {
+    const grid = C.yearGrid;
     const hold = grid.map(
-      (a) => holdNetWorth(P, P.primary_rent, years, a, marketRate, "full_rental", rentGrowth).netWorth
+      (y) => holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth
     );
-    // SELL line at the chosen market return — the SAME basis breakEvenAppreciation solves
-    // against, so the green line and the marked crossing are guaranteed consistent.
-    const sell = investNetWorth(P, calcSell(P).netProceeds, years, marketRate);
-    const be = breakEvenAppreciation(P, years, marketRate, rentGrowth);
+    // SELL at the chosen market return — best of the invest scenarios is not used here
+    // because the slider IS the market return; a single rate keeps the line interpretable.
+    const sell = grid.map((y) => investNetWorth(P, calcSell(P).netProceeds, y, marketRate));
+    // Crossover year: first year whose sign(hold − sell) differs from year 1's (mirror of
+    // the Python). Neutral fact (when the lines meet), not a verdict.
+    const diffs = hold.map((h, i) => h - sell[i]);
+    let crossover = null;
+    if (diffs.length > 1) {
+      const sign1 = diffs[1] >= 0 ? 1 : -1;
+      for (let y = 2; y < diffs.length; y++) {
+        const cur = diffs[y] >= 0 ? 1 : -1;
+        if (cur !== sign1) {
+          crossover = y;
+          break;
+        }
+      }
+    }
+    return { grid, hold, sell, crossover };
+  }
+
+  // Mirror of render._break_even_svg coordinate mapping (time axis). Pure string-building;
+  // the model numbers come from the engine above.
+  function buildSvg(appr, rentGrowth, marketRate) {
+    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate);
+    const payoff = C.payoffYear;
 
     const W = C.W, Hh = C.Hh;
     const ml = C.ml, mr = C.mr, mt = C.mt, mb = C.mb;
@@ -305,23 +326,23 @@ if (typeof document !== "undefined") {
     const y0 = Hh - mb, y1 = mt;
     const axMin = grid[0], axMax = grid[grid.length - 1];
 
-    const rawLo = Math.min(Math.min(...hold), sell);
-    const rawHi = Math.max(Math.max(...hold), sell);
+    const rawLo = Math.min(Math.min(...hold), Math.min(...sell));
+    const rawHi = Math.max(Math.max(...hold), Math.max(...sell));
     const step = C.step;
     let yMin = Math.floor(rawLo / step) * step;
     let yMax = Math.ceil(rawHi / step) * step;
     if (yMax === yMin) yMax = yMin + step;
 
-    const px = (a) => x0 + ((a - axMin) / (axMax - axMin)) * (x1 - x0);
+    const px = (t) => x0 + ((t - axMin) / (axMax - axMin)) * (x1 - x0);
     const py = (v) => y0 + ((v - yMin) / (yMax - yMin)) * (y1 - y0);
 
-    const holdPts = grid.map((a, i) => `${px(a).toFixed(1)},${py(hold[i]).toFixed(1)}`).join(" ");
-    const sellY = py(sell);
+    const holdPts = grid.map((t, i) => `${px(t).toFixed(1)},${py(hold[i]).toFixed(1)}`).join(" ");
+    const sellPts = grid.map((t, i) => `${px(t).toFixed(1)},${py(sell[i]).toFixed(1)}`).join(" ");
     const parts = [];
 
     parts.push(
-      `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Hold net worth vs. appreciation, ` +
-        `with the flat sell line; the lines cross at the break-even appreciation rate." ` +
+      `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Hold and sell net worth over the ` +
+        `holding period in years; the two curves cross at the crossover year." ` +
         `style="width:100%;height:auto;font:12px system-ui,sans-serif">`
     );
     parts.push(`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}" stroke="#bbb"/>`);
@@ -337,50 +358,36 @@ if (typeof document !== "undefined") {
       );
     }
 
-    for (let a = axMin; a <= axMax + 1e-9; a += 0.01) {
-      const xx = px(a);
+    for (let t = axMin; t <= axMax + 1e-9; t += 5) {
+      const xx = px(t);
+      parts.push(`<text x="${xx.toFixed(1)}" y="${y0 + 18}" text-anchor="middle" fill="#666">${t}</text>`);
+    }
+
+    // Mortgage-payoff reference tick (explains the kink where P&I drops to 0).
+    if (axMin <= payoff && payoff <= axMax) {
+      const xx = px(payoff);
+      parts.push(`<line x1="${xx.toFixed(1)}" y1="${y0}" x2="${xx.toFixed(1)}" y2="${y1}" stroke="#cdd6e5" stroke-dasharray="3 3"/>`);
       parts.push(
-        `<text x="${xx.toFixed(1)}" y="${y0 + 18}" text-anchor="middle" fill="#666">${+(a * 100).toFixed(2)}%</text>`
+        `<text x="${xx.toFixed(1)}" y="${(y1 - 10).toFixed(1)}" text-anchor="middle" fill="#90a">loan paid off ~${payoff.toFixed(0)}y</text>`
       );
     }
 
-    for (const rate of Object.values(C.scenarios)) {
-      if (axMin <= rate && rate <= axMax) {
-        const xx = px(rate);
-        parts.push(
-          `<line x1="${xx.toFixed(1)}" y1="${y0}" x2="${xx.toFixed(1)}" y2="${y1}" stroke="#cdd6e5" stroke-dasharray="3 3"/>`
-        );
-        const anchor = xx > x1 - 24 ? "end" : "middle";
-        const lx = anchor === "end" ? x1 : xx;
-        parts.push(
-          `<text x="${lx.toFixed(1)}" y="${(y1 - 10).toFixed(1)}" text-anchor="${anchor}" fill="#90a">${+(rate * 100).toFixed(2)}%</text>`
-        );
-      }
-    }
-
-    parts.push(`<line x1="${x0}" y1="${sellY.toFixed(1)}" x2="${x1}" y2="${sellY.toFixed(1)}" stroke="#2a7" stroke-width="2"/>`);
+    parts.push(`<polyline points="${sellPts}" fill="none" stroke="#2a7" stroke-width="2"/>`);
     parts.push(`<polyline points="${holdPts}" fill="none" stroke="#36c" stroke-width="2"/>`);
 
-    if (axMin <= be && be <= axMax) {
-      const bx = px(be), by = sellY;
-      parts.push(`<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="4" fill="#111"/>`);
+    if (crossover !== null && axMin <= crossover && crossover <= axMax) {
+      const cx = px(crossover);
+      const cy = py((hold[crossover] + sell[crossover]) / 2);
+      parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="#111"/>`);
       parts.push(
-        `<text x="${bx.toFixed(1)}" y="${(by - 10).toFixed(1)}" text-anchor="middle" fill="#111">break-even ${(be * 100).toFixed(2)}%</text>`
+        `<text x="${cx.toFixed(1)}" y="${(cy - 10).toFixed(1)}" text-anchor="middle" fill="#111">cross ~yr ${crossover}</text>`
       );
     }
 
-    // Marker for the CURRENT appreciation slider value on the Hold curve.
-    if (axMin <= appr && appr <= axMax) {
-      const ax = px(appr);
-      const ay = py(holdNetWorth(P, P.primary_rent, years, appr, marketRate, "full_rental", rentGrowth).netWorth);
-      parts.push(`<circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="4" fill="#36c"/>`);
-      parts.push(`<line x1="${ax.toFixed(1)}" y1="${y0}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="#36c" stroke-dasharray="2 2"/>`);
-    }
-
-    parts.push(`<text x="${(x0 + 6).toFixed(1)}" y="${(py(hold[0]) - 8).toFixed(1)}" text-anchor="start" fill="#36c">Hold</text>`);
-    parts.push(`<text x="${(x0 + 6).toFixed(1)}" y="${(sellY - 8).toFixed(1)}" text-anchor="start" fill="#2a7">Sell now</text>`);
+    parts.push(`<text x="${(x1 - 6).toFixed(1)}" y="${(py(hold[hold.length - 1]) - 8).toFixed(1)}" text-anchor="end" fill="#36c">Hold</text>`);
+    parts.push(`<text x="${(x1 - 6).toFixed(1)}" y="${(py(sell[sell.length - 1]) + 16).toFixed(1)}" text-anchor="end" fill="#2a7">Sell now</text>`);
     parts.push(
-      `<text x="${((x0 + x1) / 2).toFixed(0)}" y="${Hh - 4}" text-anchor="middle" fill="#444">Home appreciation (per year)</text>`
+      `<text x="${((x0 + x1) / 2).toFixed(0)}" y="${Hh - 4}" text-anchor="middle" fill="#444">Years held before selling</text>`
     );
     parts.push("</svg>");
     return parts.join("");
@@ -389,37 +396,19 @@ if (typeof document !== "undefined") {
   // Neutral readout: figures only — gap at the longest horizon + crossover year.
   // No "you should"/"better"/"win" (CLAUDE.md rule 2).
   function buildReadout(appr, rentGrowth, marketRate) {
-    const horizons = P.horizons;
-    const hz = Math.max(...horizons);
-    const hold = holdNetWorth(P, P.primary_rent, hz, appr, marketRate, "full_rental", rentGrowth).netWorth;
-    const sell = investNetWorth(P, calcSell(P).netProceeds, hz, marketRate);
-    const gap = Math.abs(hold - sell);
+    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate);
+    const hz = grid[grid.length - 1];
+    const holdHz = hold[hold.length - 1];
+    const sellHz = sell[sell.length - 1];
+    const gap = Math.abs(holdHz - sellHz);
 
-    // Crossover horizon: the first horizon where the sign of (hold − sell) differs from
-    // the shortest horizon's sign. Stated as a neutral fact, not a verdict.
-    const diffs = horizons.map((y) => {
-      const h = holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
-      const s = investNetWorth(P, calcSell(P).netProceeds, y, marketRate);
-      return h - s;
-    });
-    const sign0 = Math.sign(diffs[0]);
-    let crossIdx = -1;
-    for (let i = 1; i < diffs.length; i++) {
-      if (Math.sign(diffs[i]) !== sign0 && Math.sign(diffs[i]) !== 0) {
-        crossIdx = i;
-        break;
-      }
-    }
-
-    let crossText;
-    if (crossIdx === -1) {
-      crossText = `The Hold–Sell gap keeps the same sign across every horizon shown (${horizons[0]}–${hz} yrs).`;
-    } else {
-      crossText = `The Hold and Sell figures cross between year ${horizons[crossIdx - 1]} and year ${horizons[crossIdx]}.`;
-    }
+    const crossText =
+      crossover === null
+        ? `The Hold and Sell curves keep the same order across every year shown (${grid[0]}–${hz}).`
+        : `The two curves cross around year ${crossover}.`;
 
     return (
-      `At ${hz} yrs: Hold is worth <b>${fmtDollars(hold)}</b>, Sell <b>${fmtDollars(sell)}</b> ` +
+      `At ${hz} yrs: Hold is worth <b>${fmtDollars(holdHz)}</b>, Sell <b>${fmtDollars(sellHz)}</b> ` +
       `— a <b>${fmtDollars(gap)}</b> gap. ${crossText}`
     );
   }

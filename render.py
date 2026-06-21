@@ -85,52 +85,50 @@ def _nw_row(label_html, values, cls="", bold_last=False):
 
 
 def _break_even_svg(chart: dict) -> str:
-    """Inline SVG of HOLD net worth vs. appreciation at the longest horizon, with the
-    (flat) SELL line. The two cross at the break-even rate. Drawing only — every number
-    comes from compute()'s break_even_chart; this function does no financial math, just
-    coordinate mapping. Strictly DATA: two plain lines, a marked crossing, and unlabeled
-    reference ticks for the SF history rates. NO shading or labeling of a side as better
-    (that would be a verdict — CLAUDE.md rule 2).
+    """Inline SVG of HOLD and SELL net worth over the holding period (X = years). The two
+    curves cross at the crossover year. Drawing only — every number comes from compute()'s
+    break_even_chart; this does no financial math, just coordinate mapping. Strictly DATA:
+    two plain curves, a marked crossing, and a dashed tick at the mortgage-payoff year
+    (which explains the kink in HOLD). NO shading or labeling of a side as better — that
+    would be a verdict (CLAUDE.md rule 2). The JS buildSvg mirrors this layout.
     """
-    grid = chart["appr_grid"]
+    grid = chart["year_grid"]
     hold = chart["hold"]
     sell = chart["sell"]
-    be = chart["break_even"]
-    scenarios = chart["scenarios"]
+    crossover = chart["crossover_year"]
+    payoff = chart["payoff_year"]
 
-    # Plot box (viewBox units) — geometry lives in the module CHART_* constants so the
-    # live JS redraw uses the identical box (CLAUDE.md rule 3). The top margin holds the
-    # SF-history reference-rate labels above the plot, clear of the data lines.
+    # Plot box (viewBox units) — geometry lives in the module CHART_* constants so the live
+    # JS redraw uses the identical box (CLAUDE.md rule 3).
     W, Hh = CHART_W, CHART_HH
     ml, mr, mt, mb = CHART_ML, CHART_MR, CHART_MT, CHART_MB
     x0, x1 = ml, W - mr
     y0, y1 = Hh - mb, mt  # y0 = bottom (pixel), y1 = top
 
-    ax_min, ax_max = grid[0], grid[-1]  # appreciation domain (e.g. 0..0.06)
+    ax_min, ax_max = grid[0], grid[-1]  # year domain (0..horizon)
     # Snap the value axis to round $0.5M gridlines so the labels read cleanly and the
-    # spacing is even (placing ticks at even *pixels* would give ugly values like $0.1M /
-    # $0.6M and make the scale look non-linear). y_min/y_max become multiples of the step.
-    raw_lo = min(min(hold), sell)
-    raw_hi = max(max(hold), sell)
+    # spacing is even. y_min/y_max become multiples of the step.
+    raw_lo = min(min(hold), min(sell))
+    raw_hi = max(max(hold), max(sell))
     step = CHART_STEP
     y_min = math.floor(raw_lo / step) * step
     y_max = math.ceil(raw_hi / step) * step
     if y_max == y_min:  # degenerate guard
         y_max = y_min + step
 
-    def px(a):  # appreciation rate -> x pixel
-        return x0 + (a - ax_min) / (ax_max - ax_min) * (x1 - x0)
+    def px(t):  # year -> x pixel
+        return x0 + (t - ax_min) / (ax_max - ax_min) * (x1 - x0)
 
     def py(v):  # dollars -> y pixel
         return y0 + (v - y_min) / (y_max - y_min) * (y1 - y0)
 
-    hold_pts = " ".join(f"{px(a):.1f},{py(v):.1f}" for a, v in zip(grid, hold))
-    sell_y = py(sell)
+    hold_pts = " ".join(f"{px(t):.1f},{py(v):.1f}" for t, v in zip(grid, hold))
+    sell_pts = " ".join(f"{px(t):.1f},{py(v):.1f}" for t, v in zip(grid, sell))
 
     parts = [
         f'<svg viewBox="0 0 {W} {Hh}" role="img" '
-        'aria-label="Hold net worth vs. appreciation, with the flat sell line; '
-        'the lines cross at the break-even appreciation rate." '
+        'aria-label="Hold and sell net worth over the holding period in years; '
+        'the two curves cross at the crossover year." '
         'style="width:100%;height:auto;font:12px system-ui,sans-serif">'
     ]
 
@@ -144,68 +142,60 @@ def _break_even_svg(chart: dict) -> str:
         v = y_min + i * step
         yy = py(v)
         parts.append(f'<line x1="{x0}" y1="{yy:.1f}" x2="{x1}" y2="{yy:.1f}" stroke="#eee"/>')
-        # Format as −$0.5M / $1.0M (minus BEFORE the dollar sign, using a real minus glyph)
         m_val = v / 1e6
         label = f"−${abs(m_val):.1f}M" if m_val < 0 else f"${m_val:.1f}M"
         parts.append(
             f'<text x="{x0 - 6}" y="{yy + 4:.1f}" text-anchor="end" fill="#666">{label}</text>'
         )
 
-    # X ticks every 1% across the domain
-    a = ax_min
-    while a <= ax_max + 1e-9:
-        xx = px(a)
+    # X ticks every 5 years across the domain
+    t = ax_min
+    while t <= ax_max + 1e-9:
+        xx = px(t)
         parts.append(
-            f'<text x="{xx:.1f}" y="{y0 + 18}" text-anchor="middle" fill="#666">{a * 100:g}%</text>'
+            f'<text x="{xx:.1f}" y="{y0 + 18}" text-anchor="middle" fill="#666">{t:g}</text>'
         )
-        a += 0.01
+        t += 5
 
-    # SF history reference ticks (plain vertical dashes, unlabeled as good/bad). Labels
-    # sit in the top margin above the plot; the one nearest the right edge is end-anchored
-    # so it doesn't overflow or collide with the right frame.
-    for rate in scenarios.values():
-        if ax_min <= rate <= ax_max:
-            xx = px(rate)
-            parts.append(
-                f'<line x1="{xx:.1f}" y1="{y0}" x2="{xx:.1f}" y2="{y1}" '
-                'stroke="#cdd6e5" stroke-dasharray="3 3"/>'
-            )
-            anchor = "end" if xx > x1 - 24 else "middle"
-            lx = x1 if anchor == "end" else xx
-            parts.append(
-                f'<text x="{lx:.1f}" y="{y1 - 10:.1f}" text-anchor="{anchor}" '
-                f'fill="#90a">{rate * 100:g}%</text>'
-            )
+    # Mortgage-payoff reference tick — explains the kink where P&I drops to 0.
+    if ax_min <= payoff <= ax_max:
+        xx = px(payoff)
+        parts.append(
+            f'<line x1="{xx:.1f}" y1="{y0}" x2="{xx:.1f}" y2="{y1}" '
+            'stroke="#cdd6e5" stroke-dasharray="3 3"/>'
+        )
+        parts.append(
+            f'<text x="{xx:.1f}" y="{y1 - 10:.1f}" text-anchor="middle" fill="#90a">'
+            f"loan paid off ~{payoff:.0f}y</text>"
+        )
 
-    # The two data series
-    parts.append(
-        f'<line x1="{x0}" y1="{sell_y:.1f}" x2="{x1}" y2="{sell_y:.1f}" '
-        'stroke="#2a7" stroke-width="2"/>'
-    )
+    # The two data series (both curves)
+    parts.append(f'<polyline points="{sell_pts}" fill="none" stroke="#2a7" stroke-width="2"/>')
     parts.append(f'<polyline points="{hold_pts}" fill="none" stroke="#36c" stroke-width="2"/>')
 
-    # Crossing point (break-even), if on-domain
-    if ax_min <= be <= ax_max:
-        bx, by = px(be), sell_y
-        parts.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="4" fill="#111"/>')
+    # Crossover point, if any (where the two curves meet). Linear-interpolate the y between
+    # the bracketing yearly samples so the dot sits on the lines, not at the integer year.
+    if crossover is not None and ax_min <= crossover <= ax_max:
+        cx = px(crossover)
+        cy = py((hold[crossover] + sell[crossover]) / 2)
+        parts.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4" fill="#111"/>')
         parts.append(
-            f'<text x="{bx:.1f}" y="{by - 10:.1f}" text-anchor="middle" fill="#111">'
-            f"break-even {be * 100:.2f}%</text>"
+            f'<text x="{cx:.1f}" y="{cy - 10:.1f}" text-anchor="middle" fill="#111">'
+            f"cross ~yr {crossover}</text>"
         )
 
-    # Inline series labels at the LEFT edge of each line — the Hold line starts low here, so
-    # they sit clear of the data, the crossing label, and the top-right reference ticks.
+    # Inline series labels at the RIGHT edge of each curve (they fan apart by the horizon).
     parts.append(
-        f'<text x="{x0 + 6}" y="{py(hold[0]) - 8:.1f}" text-anchor="start" fill="#36c">Hold</text>'
+        f'<text x="{x1 - 6}" y="{py(hold[-1]) - 8:.1f}" text-anchor="end" fill="#36c">Hold</text>'
     )
     parts.append(
-        f'<text x="{x0 + 6}" y="{sell_y - 8:.1f}" text-anchor="start" fill="#2a7">Sell now</text>'
+        f'<text x="{x1 - 6}" y="{py(sell[-1]) + 16:.1f}" text-anchor="end" fill="#2a7">Sell now</text>'
     )
 
-    # Axis titles
+    # Axis title
     parts.append(
         f'<text x="{(x0 + x1) / 2:.0f}" y="{Hh - 4}" text-anchor="middle" fill="#444">'
-        "Home appreciation (per year)</text>"
+        "Years held before selling</text>"
     )
 
     parts.append("</svg>")
@@ -526,9 +516,9 @@ def build_context(m: Model) -> dict:
             "mt": CHART_MT,
             "mb": CHART_MB,
             "step": CHART_STEP,
-            "apprGrid": bec["appr_grid"],
+            "yearGrid": bec["year_grid"],
             "horizon": bec["horizon"],
-            "scenarios": bec["scenarios"],
+            "payoffYear": bec["payoff_year"],
         }
     )
     with open(os.path.join("static", "model.js")) as f:

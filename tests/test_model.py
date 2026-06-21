@@ -187,19 +187,22 @@ def test_break_even_appreciation_ties_hold_and_sell(m):
         assert abs(hold - sell) < 1.0  # bisection converges to the cent
 
 
-def test_break_even_chart_series_cross_at_break_even(m):
-    """The chart's HOLD-vs-appreciation series must straddle the flat SELL line and cross
-    it at the reported break-even rate — the chart is a drawing of the same fact, so its
-    data must be internally consistent with break_even["rows"][hz]."""
+def test_break_even_chart_is_wealth_over_time(m):
+    """The wealth-over-time chart series must be aligned year arrays for HOLD and SELL over
+    0..horizon, with the payoff year derived from the loan and the crossover year (if any)
+    inside the swept domain — the chart is a drawing of these facts, so they must be
+    internally consistent."""
     c = m.compute()["break_even_chart"]
-    grid, hold, sell, be = c["appr_grid"], c["hold"], c["sell"], c["break_even"]
-    assert len(hold) == len(grid)
-    # SELL is appreciation-independent (a single flat value), HOLD rises with appreciation.
-    assert hold == sorted(hold)
-    # The series bracket the crossing: HOLD is below SELL at the low end, above at the high.
-    assert hold[0] < sell < hold[-1]
-    # And the reported break-even sits within the swept domain.
-    assert grid[0] <= be <= grid[-1]
+    grid, hold, sell = c["year_grid"], c["hold"], c["sell"]
+    assert grid[0] == 0 and grid[-1] == c["horizon"]
+    assert len(hold) == len(grid) == len(sell)
+    # Each HOLD point matches the model at that year (the chart is just a drawing of them).
+    assert hold[-1] == m.hold_net_worth(m.p.primary_rent, c["horizon"], 0.0485).net_worth
+    # Payoff year = loan months / 12; sits within the swept domain.
+    assert c["payoff_year"] == m.p.payments_left / 12
+    # Crossover, if present, is a year index in range; if None the gap never changes sign.
+    if c["crossover_year"] is not None:
+        assert grid[0] < c["crossover_year"] <= grid[-1]
 
 
 def test_two_properties_are_independent():
