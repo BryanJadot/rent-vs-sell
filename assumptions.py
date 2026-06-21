@@ -81,7 +81,9 @@ MARGINAL_TAX = 0.40  # combined fed+CA ORDINARY rate (single, >$250k income)
 INCOME_BRACKET_THRESHOLD = 250_000  # income level justifying MARGINAL_TAX (display)
 PASSIVE_LOSS_MAGI_LIMIT = 150_000  # MAGI above which passive losses suspend
 
-DEPREC_RECAPTURE_RATE = FED_RECAPTURE + CA_TOP_RATE  # fed §1250 + CA ordinary
+# Unrecaptured §1250 gain is net investment income for a high-MAGI owner, so it carries
+# NIIT too (consistent with CAP_GAINS_RATE): fed §1250 25% + NIIT 3.8% + CA ordinary 13.3%.
+DEPREC_RECAPTURE_RATE = FED_RECAPTURE + NIIT_RATE + CA_TOP_RATE
 CAP_GAINS_RATE = FED_LT_CAP_GAINS + NIIT_RATE + CA_TOP_RATE
 CG_EXCLUSION = 250_000  # §121 primary-residence exclusion (single filer)
 # The §121 "use" test (occupy 2 of the last 5 yrs) is encoded operationally by

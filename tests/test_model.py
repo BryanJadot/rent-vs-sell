@@ -272,19 +272,56 @@ def test_excluded_gain_move_back_prorates_by_qualified_use():
 
 
 def test_tax_at_sale_signs_and_components():
-    """All three components are returned as positive dollar amounts."""
+    """All three components positive; sale well above cost basis → FULL recapture."""
+    # cost basis 1,000,000; accum deprec 200,000 → adjusted basis 800,000.
+    # realized 1,400,000 → recognized gain 600,000 > deprec, so recapture is on the full
+    # 200,000 and the cap-gains slice is the 400,000 above cost basis.
     st = tax_at_sale(
         accumulated_deprec=200_000,
         suspended_loss=150_000,
-        appreciation_gain=400_000,
+        realized_amount=1_400_000,
+        cost_basis=1_000_000,
         treatment=Sec121.FULL_RENTAL,
         years=10,
         years_owned_as_residence=4.5,
     )
     assert st.recapture > 0 and st.deprec_release > 0 and st.cap_gains_tax > 0
     assert st.excluded_gain == 0.0  # full rental → no exclusion
-    # cap gains is taxed on the whole gain (no exclusion) at the cap-gains rate
+    assert st.appreciation_gain == pytest.approx(400_000)
     assert abs(st.cap_gains_tax - 400_000 * CAP_GAINS_RATE) < 1.0
+    # recapture carries NIIT (consistent with cap gains): fed 25% + NIIT 3.8% + CA 13.3%.
+    assert abs(st.recapture - 200_000 * assumptions.DEPREC_RECAPTURE_RATE) < 1.0
+    assert assumptions.DEPREC_RECAPTURE_RATE == pytest.approx(0.25 + 0.038 + 0.133)
+
+
+def test_recapture_capped_at_recognized_gain():
+    """§1250: when the sale lands BETWEEN adjusted basis and original cost, recapture is
+    capped at the recognized gain (not all depreciation taken), and there is no cap-gains
+    slice. Below adjusted basis it's a §1231 loss with zero recapture."""
+    # cost basis 1,000,000; accum deprec 200,000 → adjusted basis 800,000.
+    # Sell at 900,000: recognized gain 100,000 < 200,000 deprec → recapture only 100,000.
+    st = tax_at_sale(
+        accumulated_deprec=200_000,
+        suspended_loss=0.0,
+        realized_amount=900_000,
+        cost_basis=1_000_000,
+        treatment=Sec121.FULL_RENTAL,
+        years=10,
+        years_owned_as_residence=4.5,
+    )
+    assert st.recapture == pytest.approx(100_000 * assumptions.DEPREC_RECAPTURE_RATE)
+    assert st.appreciation_gain == 0.0 and st.cap_gains_tax == 0.0
+    # Sell below adjusted basis (700,000 < 800,000): §1231 loss, no recapture, no gain.
+    st_loss = tax_at_sale(
+        accumulated_deprec=200_000,
+        suspended_loss=0.0,
+        realized_amount=700_000,
+        cost_basis=1_000_000,
+        treatment=Sec121.FULL_RENTAL,
+        years=10,
+        years_owned_as_residence=4.5,
+    )
+    assert st_loss.recapture == 0.0 and st_loss.cap_gains_tax == 0.0
 
 
 # ── Golden snapshot: any unintended numeric drift becomes a visible diff ────────

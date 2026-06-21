@@ -181,23 +181,35 @@ class SaleTax:
     deprec_release: float  # suspended passive losses freed at sale (a benefit, positive)
     cap_gains_tax: float  # tax on appreciation above basis, net of §121 (a cost, positive)
     excluded_gain: float  # §121 exclusion applied (for display/audit)
+    appreciation_gain: float  # gain above original cost basis, pre-§121 (for display/audit)
 
 
 def tax_at_sale(
     accumulated_deprec: float,
     suspended_loss: float,
-    appreciation_gain: float,
+    realized_amount: float,
+    cost_basis: float,
     treatment: Sec121,
     years: int,
     years_owned_as_residence: float,
 ) -> SaleTax:
     """All taxes that land at the future sale of a property held as a rental.
 
-    Three independent pieces, kept separate so each can be reasoned about and tested:
+    `realized_amount` is the sale price NET of selling costs (the §1001 amount realized);
+    `cost_basis` is the ORIGINAL (pre-depreciation) basis. Adjusted basis = cost_basis −
+    accumulated_deprec. The total recognized gain (realized − adjusted basis) splits into
+    two slices that this function taxes separately:
 
-      • RECAPTURE: depreciation taken while renting is "recaptured" at sale —
-        accumulated_deprec × DEPREC_RECAPTURE_RATE (fed unrecaptured §1250 25% + CA
-        taxes it as ordinary income). A cost. Returned positive; the caller subtracts it.
+      • RECAPTURE (unrecaptured §1250 gain): the part of the recognized gain attributable
+        to depreciation taken, taxed at DEPREC_RECAPTURE_RATE (fed §1250 25% + NIIT 3.8% +
+        CA ordinary 13.3% — it IS net investment income for a high-MAGI owner, so it
+        carries NIIT just like the cap-gains slice does). A cost.
+        CAP (IRC §1250/§1(h)): unrecaptured §1250 gain cannot exceed the TOTAL recognized
+        gain. So recapture is charged on min(accumulated_deprec, realized − adjusted_basis),
+        not on all depreciation taken. When the property sells above its original cost
+        basis this min() is the full depreciation (the historical common case); when it
+        sells BETWEEN adjusted basis and cost basis only the smaller recognized gain is
+        recaptured; below adjusted basis it's a §1231 loss and recapture is $0.
 
       • DEPREC_RELEASE: for a high-MAGI owner, yearly rental losses are *suspended*
         (no annual deduction) and released all at once at sale, deductible at the
@@ -207,14 +219,24 @@ def tax_at_sale(
         depreciation taken, while the released loss pool is drawn down once the rental
         turns tax-positive in later years, so they do not cancel over a long hold.
 
-      • CAP_GAINS_TAX: the appreciation above original cost basis, minus any §121
-        exclusion, taxed at CAP_GAINS_RATE (fed LT 20% + NIIT 3.8% + CA 13.3%). A cost.
+      • CAP_GAINS_TAX: the appreciation above original cost basis (the recognized gain
+        in EXCESS of the recaptured §1250 slice), minus any §121 exclusion, taxed at
+        CAP_GAINS_RATE (fed LT 20% + NIIT 3.8% + CA 13.3%). A cost. Floored at 0 — a
+        sale below cost basis produces no cap-gains slice (and a sale below adjusted
+        basis is a §1231 loss this model conservatively does not credit).
 
     All amounts are positive dollars; signs are applied by the caller. Rates are flat
     effective rates — a simplification; real brackets are graduated.
     """
-    recapture = accumulated_deprec * DEPREC_RECAPTURE_RATE
+    adjusted_basis = cost_basis - accumulated_deprec
+    recognized_gain = realized_amount - adjusted_basis
+    # §1250 cap: recapture only the depreciation that is actually recovered by the gain.
+    recapture_base = max(0.0, min(accumulated_deprec, recognized_gain))
+    recapture = recapture_base * DEPREC_RECAPTURE_RATE
     deprec_release = suspended_loss * MARGINAL_TAX
+    # Cap-gains slice = recognized gain ABOVE original cost basis (i.e. above the part
+    # already taxed as §1250 recapture). Equivalent to max(0, realized − cost_basis).
+    appreciation_gain = max(0.0, realized_amount - cost_basis)
     excluded = excluded_gain(treatment, appreciation_gain, years, years_owned_as_residence)
     taxable_gain = max(0.0, appreciation_gain - excluded)
     # CAP_GAINS_RATE bundles NIIT (3.8%). Applying it to the POST-exclusion gain is
@@ -223,7 +245,7 @@ def tax_at_sale(
     # rightly escapes NIIT too. (Depreciation recapture is separate above and is never
     # §121-excludable, which the code already respects.)
     cap_gains_tax = taxable_gain * CAP_GAINS_RATE
-    return SaleTax(recapture, deprec_release, cap_gains_tax, excluded)
+    return SaleTax(recapture, deprec_release, cap_gains_tax, excluded, appreciation_gain)
 
 
 class Model:
@@ -527,14 +549,16 @@ class Model:
         # Depreciation stops accruing after the 27.5-yr schedule ends, hence the min().
         accumulated_deprec = self.annual_depreciation * min(years, DEPREC_YEARS)
         suspended_loss = self.suspended_operating_losses(monthly_rent, years)
-        # Taxable appreciation is the AMOUNT REALIZED (future price net of selling costs)
-        # minus basis (IRC §1001 — selling costs reduce the amount realized), same as
-        # calc_sell. Recapture is handled separately in tax_at_sale.
-        appreciation_gain = max(0.0, (future_value - sale_costs) - p.cost_basis)
+        # The AMOUNT REALIZED is the future price net of selling costs (IRC §1001 —
+        # selling costs reduce the amount realized). tax_at_sale splits the gain over
+        # adjusted basis into the §1250-recapture slice (capped at the recognized gain)
+        # and the cap-gains slice, so it needs the realized amount and the ORIGINAL basis.
+        realized_amount = future_value - sale_costs
         st = tax_at_sale(
             accumulated_deprec,
             suspended_loss,
-            appreciation_gain,
+            realized_amount,
+            p.cost_basis,
             sec121,
             years,
             p.years_owned_as_residence,
@@ -566,7 +590,7 @@ class Model:
             cash_fv,
             st.deprec_release,
             st.recapture,
-            appreciation_gain,
+            st.appreciation_gain,
             st.excluded_gain,
             st.cap_gains_tax,
             reserve_opp_cost,
