@@ -141,7 +141,7 @@ def build_context(m: Model) -> dict:
         [rgs["rows"][y]["high"] for y in H],
     )
     rg_rows += _nw_row(
-        '<b>Sell now + invest</b> <span class="sub">(best of 5/7%, after-tax)</span>',
+        '<b>Sell now + invest</b> <span class="sub">(at 7%, the higher opp. rate, after-tax)</span>',
         [rgs["rows"][y]["best_sell"] for y in H],
         cls="sell",
     )
