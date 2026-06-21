@@ -22,7 +22,7 @@
 
   <div class="card"><div class="grid">
     <div><div class="sub">Current value (Zestimate)</div><b>${{ '{:,.0f}'.format(home_value) }}</b></div>
-    <div><div class="sub">Cost basis (purchase price)</div><b>${{ '{:,.0f}'.format(cost_basis) }}</b>
+    <div><div class="sub">Cost basis <span title="what you paid — the baseline the taxable gain is measured from">(purchase price — the baseline for taxing the gain)</span></div><b>${{ '{:,.0f}'.format(cost_basis) }}</b>
       {% if sells_at_loss %}<span class="pill">value below basis</span>{% else %}<span class="pill">value above basis</span>{% endif %}</div>
     <div><div class="sub">Mortgage balance</div><b>${{ '{:,.0f}'.format(mortgage_bal) }}</b></div>
     <div><div class="sub">Mortgage rate (derived)</div><b>{{ '%.3f'|format(apr*100) }}%</b></div>
@@ -52,7 +52,8 @@
 
   <h3>Break-even appreciation</h3>
   <p class="sub">The home-appreciation rate at which holding ends up <b>exactly equal</b> to selling now and
-  investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate). Above this
+  investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate — what the money
+  would earn in the market instead). Above this
   rate the hold's ending wealth exceeds the sell path's; below it, it falls short. For context, SF Case-Shiller history:
   {{ '%g'|format(be_low_pct) }}% (20-yr) / {{ '%g'|format(be_mod_pct) }}% (10-yr) / {{ '%g'|format(be_high_pct) }}% (30-yr) CAGR.</p>
   <table>
