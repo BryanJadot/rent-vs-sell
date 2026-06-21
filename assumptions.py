@@ -142,5 +142,5 @@ APPRECIATION_NOTES = {"low": "SF 20-yr", "moderate": "SF 10-yr", "high": "SF 30-
 APPRECIATION_TAGS = {"low": "low end", "moderate": "primary", "high": "high end"}
 PRIMARY_APPRECIATION = APPRECIATION["moderate"]
 
-HORIZONS = [3, 5, 10, 15, 20]  # years
+HORIZONS = [3, 5, 10, 15, 20, 30]  # years
 WORKED_EXAMPLE_HORIZON = 10  # horizon featured in the "how a number is built" example

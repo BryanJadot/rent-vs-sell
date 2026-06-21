@@ -5,7 +5,8 @@
     "5": 1156507.7378311295,
     "10": 1484238.827934934,
     "15": 1943898.635564223,
-    "20": 2588595.2942879116
+    "20": 2588595.2942879116,
+    "30": 4761031.61600568
   },
   "break_even": {
     "opp_rate": 0.07,
@@ -15,7 +16,8 @@
       "5": 0.06372241099632048,
       "10": 0.04881019449207191,
       "15": 0.04516420450381331,
-      "20": 0.04440465324946008
+      "20": 0.04440465324946008,
+      "30": 0.04779420810742929
     },
     "scenarios": {
       "high": 0.06,
@@ -39,38 +41,38 @@
       0.055,
       0.06
     ],
-    "break_even": 0.04440465324946008,
+    "break_even": 0.04779420810742929,
     "hold": [
-      1610852.3632657707,
-      1684936.5807455403,
-      1766365.1812880759,
-      1855824.386189653,
-      1954060.6617748816,
-      2061885.6719858246,
-      2180181.6107308436,
-      2309906.941034328,
-      2452102.5698077437,
-      2607898.4889486344,
-      2778520.9154744744,
-      2965299.9655174534,
-      3169677.8992524203
+      2601481.830861625,
+      2715473.279911817,
+      2847155.818123745,
+      2999166.4485756964,
+      3174519.223510135,
+      3376656.88979373,
+      3609509.3011533525,
+      3877559.4439528645,
+      4185918.024301841,
+      4540407.676782965,
+      4947657.980289041,
+      5415212.605733712,
+      5951650.075247203
     ],
-    "horizon": 20,
+    "horizon": 30,
     "scenarios": {
       "high": 0.06,
       "low": 0.025,
       "moderate": 0.0485
     },
-    "sell": 2588595.2942879116
+    "sell": 4761031.61600568
   },
   "cash_facts": {
     "cum_oop_10": -344331.1210651803,
     "inflation_rate": 0.03,
-    "longest_horizon": 20,
+    "longest_horizon": 30,
     "mo_oop": -2699.6666666666665,
     "reserve_cost_yr": 1006.4000000000002,
     "shortest_horizon": 3,
-    "today_value_fraction": 0.5536757541863345,
+    "today_value_fraction": 0.41198675951590635,
     "yr10_oop": -42369.29144733574,
     "yr1_oop": -32396.0
   },
@@ -148,6 +150,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 1361492.8614002017,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 5382193.052687529,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ],
         "6000": [
@@ -220,6 +236,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 1930949.8839598764,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 5951650.075247203,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ],
         "7000": [
@@ -292,6 +322,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 2500406.9065195504,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 6521107.0978068765,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ],
         "8000": [
@@ -364,6 +408,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 3069863.9290792244,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 7090564.120366551,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ]
       },
@@ -438,6 +496,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 1361492.8614002017,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 2807199.8672340554,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ],
         "6000": [
@@ -510,6 +582,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 1930949.8839598764,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 3376656.88979373,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ],
         "7000": [
@@ -582,6 +668,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 2500406.9065195504,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 3946113.9123534043,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ],
         "8000": [
@@ -654,6 +754,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 3069863.9290792244,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 4515570.934913077,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ]
       },
@@ -728,6 +842,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 1361492.8614002017,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 4250056.0293316785,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ],
         "6000": [
@@ -800,6 +928,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 1930949.8839598764,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 4819513.051891353,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ],
         "7000": [
@@ -872,6 +1014,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 2500406.9065195504,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 5388970.074451027,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ],
         "8000": [
@@ -944,6 +1100,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 3069863.9290792244,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 5958427.097010701,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ]
       }
@@ -1020,6 +1190,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 1361492.8614002017,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 5382193.052687529,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ],
         "6000": [
@@ -1092,6 +1276,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 1930949.8839598764,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 5951650.075247203,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ],
         "7000": [
@@ -1164,6 +1362,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 2500406.9065195504,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 6521107.0978068765,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ],
         "8000": [
@@ -1236,6 +1448,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 247462.57303594332
+          },
+          {
+            "appreciation_gain": 5649021.6285939235,
+            "cap_gains_tax": 2095787.0242083457,
+            "cash_flow_fv": 3069863.9290792244,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 6892189.40749591,
+            "gross_equity": 6449021.628593917,
+            "net_worth": 7090564.120366551,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 443167.778901987
           }
         ]
       },
@@ -1310,6 +1536,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 1361492.8614002017,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 2807199.8672340554,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ],
         "6000": [
@@ -1382,6 +1622,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 1930949.8839598764,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 3376656.88979373,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ],
         "7000": [
@@ -1454,6 +1708,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 2500406.9065195504,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 3946113.9123534043,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ],
         "8000": [
@@ -1526,6 +1794,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 126435.64453280681
+          },
+          {
+            "appreciation_gain": 1555232.7804961922,
+            "cap_gains_tax": 576991.3615640873,
+            "cash_flow_fv": 3069863.9290792244,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 2517081.094898143,
+            "gross_equity": 2355232.7804961856,
+            "net_worth": 4515570.934913077,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 161848.31440195057
           }
         ]
       },
@@ -1600,6 +1882,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 1361492.8614002017,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 4250056.0293316785,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ],
         "6000": [
@@ -1672,6 +1968,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 1930949.8839598764,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 4819513.051891353,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ],
         "7000": [
@@ -1744,6 +2054,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 2500406.9065195504,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 5388970.074451027,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ],
         "8000": [
@@ -1816,6 +2140,20 @@
             "remaining_loan": 6.345999281620607e-09,
             "reserve_opp_cost": 51919.50241186991,
             "sale_costs": 198957.77479190106
+          },
+          {
+            "appreciation_gain": 3849121.7504447177,
+            "cap_gains_tax": 1428024.1694149903,
+            "cash_flow_fv": 3069863.9290792244,
+            "deprec_release": 0.0,
+            "excluded_gain": 0.0,
+            "future_value": 4968602.918077074,
+            "gross_equity": 4649121.750444712,
+            "net_worth": 5958427.097010701,
+            "recapture": 202080.00000000003,
+            "remaining_loan": 6.345999281620607e-09,
+            "reserve_opp_cost": 130454.41309824509,
+            "sale_costs": 319481.1676323558
           }
         ]
       }
@@ -1845,7 +2183,8 @@
       5,
       10,
       15,
-      20
+      20,
+      30
     ],
     "insurance": 1500.0,
     "invest_rates": [
@@ -1934,6 +2273,16 @@
           "hold": 2725700.3552094684,
           "sell": 2588595.2942879116
         }
+      },
+      "30": {
+        "5%": {
+          "hold": 4487334.701247155,
+          "sell": 2851115.7986334627
+        },
+        "7%": {
+          "hold": 4819513.051891353,
+          "sell": 4761031.61600568
+        }
       }
     }
   },
@@ -1965,6 +2314,11 @@
         "best_sell": 2588595.2942879116,
         "high": 2981671.0964728897,
         "low": 2725700.3552094684
+      },
+      "30": {
+        "best_sell": 4761031.61600568,
+        "high": 5729214.309610798,
+        "low": 4819513.051891353
       }
     }
   },
@@ -2097,14 +2451,16 @@
       1083212.1529194878,
       1287892.1748290604,
       1549121.5130043442,
-      1882523.7009015358
+      1882523.7009015358,
+      2851115.7986334627
     ],
     "7%": [
       1053469.89105348,
       1156507.7378311295,
       1484238.827934934,
       1943898.635564223,
-      2588595.2942879116
+      2588595.2942879116,
+      4761031.61600568
     ]
   },
   "worked_example": {
