@@ -29,7 +29,6 @@ class Sec121(str, Enum):
 
     FULL_RENTAL = "full_rental"  # rented the whole time, never re-occupy → no exclusion
     WITHIN_3YR = "within_3yr"  # sell while still passing the 2-of-5-yr test → full exclusion
-    MOVE_BACK = "move_back"  # re-occupy MOVE_BACK_YEARS before selling → prorated exclusion
 
 
 # ── PER-PROPERTY INPUTS (loaded from properties/*.toml) ───────────────────────
@@ -88,7 +87,6 @@ CAP_GAINS_RATE = FED_LT_CAP_GAINS + NIIT_RATE + CA_TOP_RATE
 CG_EXCLUSION = 250_000  # §121 primary-residence exclusion (single filer)
 # The §121 "use" test (occupy 2 of the last 5 yrs) is encoded operationally by
 # SELL_SOON_MAX_YEARS below — that's the max rental period where the test still passes.
-MOVE_BACK_YEARS = 2  # yrs re-occupied before sale in the move-back scenario
 SELL_SOON_MAX_YEARS = 3  # max hold where "sell soon" still passes the 2-of-5 test
 # MAGI > limit → passive rental losses suspended, released at sale (no yearly shield)
 PASSIVE_LOSS_USABLE_YEARLY = False

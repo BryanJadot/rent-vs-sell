@@ -26,8 +26,7 @@
   </table>
   <p class="legend">Net worth in dollars at each horizon, after all costs and taxes of the eventual sale.
   "Full rental" = sold as a rental, no §121 exclusion. "Hold ≤3 yrs" keeps the full ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 exclusion
-  by selling before the 2-of-5-year residence test lapses (*so it only applies at ≤3 yrs). "Move back" =
-  re-occupy {{ move_back_years }} years before selling to reclaim a prorated exclusion. "Sell now + invest" proceeds are shown
+  by selling before the 2-of-5-year residence test lapses (*so it only applies at ≤3 yrs). "Sell now + invest" proceeds are shown
   after-tax (investment gains taxed at sale, symmetric with the home's taxed gain).</p>
   <div class="callout"><b>Units:</b> all figures are <b>nominal future dollars</b>. At ~3% inflation a dollar
   {{ longest_horizon }} years out is worth roughly half a dollar today. Both paths are measured in the same
@@ -72,7 +71,7 @@
       <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
       <tr><td>± Cash flow (compounded like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
       <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
-      <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + CA ordinary ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
+      <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + NIIT 3.8% + CA 13.3% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
       <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
       <tr><td>− Reserve opportunity cost</td><td class="num-bad">−{{ '{:,.0f}'.format(we.reserve_opp_cost) }}</td><td class="sub">${{ '{:,.0f}'.format(cash_reserve) }} reserve in bonds vs. the market rate</td></tr>
       <tr class="total"><td>= Net worth at {{ worked_horizon }} yrs</td><td><b>{{ '{:,.0f}'.format(we.net_worth) }}</b></td><td></td></tr>
@@ -83,7 +82,7 @@
     (rent minus operating costs, mortgage interest, and ~${{ '{:,.0f}'.format(annual_depreciation) }}/yr depreciation). At MAGI
     &gt;${{ '{:g}'.format(passive_loss_magi_limit/1000) }}k those losses are suspended and <b>released at sale</b>, deducted at the
     {{ '%.0f'|format(marginal_tax*100) }}% rate (+${{ '{:,.0f}'.format(we.deprec_release) }}). At sale the IRS also <b>recaptures</b> the depreciation at
-    {{ '%.1f'|format(deprec_recapture_rate*100) }}% (fed 25% + CA ordinary) (−${{ '{:,.0f}'.format(we.recapture) }}). Net of the two: <b>{{ deprec_net }}</b>.
+    {{ '%.1f'|format(deprec_recapture_rate*100) }}% (fed 25% + NIIT 3.8% + CA 13.3%) (−${{ '{:,.0f}'.format(we.recapture) }}). Net of the two: <b>{{ deprec_net }}</b>.
     The two do not fully cancel: recapture accrues on every year of depreciation, while the released loss pool
     is drawn down once the rental turns tax-positive in later years. None of this affects monthly cash flow;
     it lands at sale. <i>Confirm the treatment with a CPA.</i>
@@ -166,7 +165,7 @@
 
   <div class="foot">
     <b>Simplifications.</b> Cap-gains and recapture rates are applied as flat effective rates (real brackets are
-    graduated and interact with other income). The "move back" §121 proration is approximated. Both sides are
+    graduated and interact with other income). Both sides are
     treated symmetrically and after-tax: the sold proceeds and the hold path's cash flow &amp; reserve all compound
     at the pre-tax {{ '%.0f'|format(primary_invest*100) }}% rate with the gain taxed once at the end (the reserve at the bond rate).
     Not modeled in dollars: inflation (figures are nominal), the time cost of landlording, the timing constraint

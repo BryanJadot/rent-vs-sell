@@ -155,8 +155,13 @@ for a model whose whole value is stable, correct figures.
 - Passive losses are **suspended** when MAGI is high and released at sale (no yearly
   shield). Don't "give back" the yearly depreciation shield unless
   `PASSIVE_LOSS_USABLE_YEARLY` is set.
-- §121 has three treatments (`full_rental`, `within_3yr`, `move_back`) — the proration
-  is an approximation flagged as such. This is the area most worth a CPA's eyes.
+- §121 has two treatments (`full_rental`, `within_3yr`). A "move back in to re-qualify"
+  scenario is intentionally NOT modeled — it only earns the prorated exclusion if you
+  also bear the offsetting cost (forgone rent + own housing over a longer timeline),
+  which would more than cancel the benefit; modeling only the benefit overstates it.
+- Depreciation recapture carries NIIT (`DEPREC_RECAPTURE_RATE` = fed 25% + NIIT 3.8% +
+  CA 13.3%) and is capped at the recognized gain per §1250 (`tax_at_sale` takes the
+  realized amount + cost basis to compute the cap). This is the area most worth a CPA's eyes.
 - Property tax = assessed value × effective rate, grown at the 2% Prop 13 cap. It's
   stored as a flat dollar figure (assessed × rate) that grows — same result, simpler.
 - Depreciable `building_basis` is per-property (TOML): lower-of-cost-or-FMV at

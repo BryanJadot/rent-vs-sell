@@ -50,7 +50,6 @@ from assumptions import (
     RISK_VACANCY_PROB,
     RISK_EVICTION_PROB,
     RISK_REPAIR_PROB,
-    MOVE_BACK_YEARS,
     SELL_SOON_MAX_YEARS,
     VACANCY_RATE,
     MGMT_RATE,
@@ -105,15 +104,6 @@ def build_context(m: Model) -> dict:
     headline += (
         f"<tr><td>Hold ≤3 yrs then sell "
         f'<span class="sub">(keeps full ${CG_EXCLUSION / 1000:g}k §121)</span></td>{w3}</tr>'
-    )
-    mb = [
-        m.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION, sec121=Sec121.MOVE_BACK).net_worth
-        for y in H
-    ]
-    headline += _nw_row(
-        f"Hold, rent ${p.primary_rent / 1000:g}k/mo "
-        f'<span class="sub">(move back {MOVE_BACK_YEARS} yrs, partial §121)</span>',
-        mb,
     )
     for rate in INVEST_RATES:
         vals = [m.invest_net_worth(sell.net_proceeds, y, rate) for y in H]
@@ -257,7 +247,7 @@ def build_context(m: Model) -> dict:
         (
             "Depreciation recapture",
             f"{DEPREC_RECAPTURE_RATE * 100:.1f}%",
-            f"fed {FED_RECAPTURE * 100:g}% + CA ordinary {CA_TOP_RATE * 100:g}%",
+            f"fed {FED_RECAPTURE * 100:g}% + NIIT {NIIT_RATE * 100:g}% + CA {CA_TOP_RATE * 100:g}%",
         ),
         (
             "Passive losses",
@@ -285,11 +275,6 @@ def build_context(m: Model) -> dict:
             "vac/evict/repair",
             f"{BAD_VACANCY_MONTHS}mo vacancy, ${EVICTION_COST:,.0f} eviction, ${MAJOR_REPAIR:,.0f} repair "
             f"(capital improvement → ${m.net_major_repair:,.0f} net of tax). Worst case stacks all three.",
-        ),
-        (
-            "§121 move-back proration",
-            "qualified/total yrs",
-            f"(res {p.years_owned_as_residence:g}+{MOVE_BACK_YEARS}) / (res {p.years_owned_as_residence:g}+rental+{MOVE_BACK_YEARS}); approximate",
         ),
         ("Cash reserve", f"${p.cash_reserve:,.0f}", "landlord buffer estimate"),
     ]
@@ -342,7 +327,6 @@ def build_context(m: Model) -> dict:
         "broker_rate": BROKER_RATE,
         "transfer_tax": TRANSFER_TAX,
         "title_escrow": TITLE_ESCROW,
-        "move_back_years": MOVE_BACK_YEARS,
         "sell_soon_max_years": SELL_SOON_MAX_YEARS,
         "longest_horizon": v["longest_horizon"],
         "worked_horizon": WORKED_EXAMPLE_HORIZON,

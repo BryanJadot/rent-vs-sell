@@ -44,7 +44,6 @@ from assumptions import (
     DEPREC_RECAPTURE_RATE,
     CAP_GAINS_RATE,
     CG_EXCLUSION,
-    MOVE_BACK_YEARS,
     SELL_SOON_MAX_YEARS,
     PASSIVE_LOSS_USABLE_YEARLY,
     BAD_VACANCY_MONTHS,
@@ -143,33 +142,28 @@ def _derive_monthly_rate(balance: float, pmt: float, n: int) -> float:
     return r
 
 
-def excluded_gain(
-    treatment: Sec121, appreciation_gain: float, years: int, years_owned_as_residence: float
-) -> float:
+def excluded_gain(treatment: Sec121, appreciation_gain: float, years: int) -> float:
     """How much of the future capital gain the §121 exclusion shelters, in dollars.
 
     Rule (IRC §121): up to CG_EXCLUSION of gain on a primary residence is tax-free if
     you owned AND used it as your main home ≥2 of the last 5 years before sale. A pure
-    rental fails the use test entirely. The three treatments model the realistic options:
+    rental fails the use test entirely. The two treatments model the realistic options:
 
       FULL_RENTAL  → rented continuously, never re-occupied: fails the use test, $0 excluded.
       WITHIN_3YR   → sold soon enough that the 2-of-5 test is still met (only valid up to
                      SELL_SOON_MAX_YEARS of renting): full exclusion, capped at CG_EXCLUSION.
-      MOVE_BACK    → move back in for MOVE_BACK_YEARS before selling to re-qualify. Post-2008
-                     law (the Housing Assistance Act) prorates the exclusion by the
-                     "qualified use" fraction = residence-years / total-ownership-years, so
-                     renting it out dilutes how much you can exclude. APPROXIMATE — the real
-                     non-qualified-use rules have more nuance; confirm with a CPA.
+
+    (A "move back in to re-qualify" scenario is intentionally NOT modeled: re-occupying
+    for a couple of years to reclaim a prorated exclusion only earns the tax benefit if
+    you ALSO bear the offsetting cost — years of forgone rent and your own housing cost
+    over an extended timeline — which more than cancels the benefit for this property.
+    Modeling only the benefit would overstate it, so the scenario is omitted rather than
+    half-modeled.)
 
     Returns a non-negative dollar amount, never exceeding the gain or the statutory cap.
     """
     if treatment == Sec121.WITHIN_3YR and years <= SELL_SOON_MAX_YEARS:
         return min(CG_EXCLUSION, appreciation_gain)
-    if treatment == Sec121.MOVE_BACK:
-        residence_yrs = years_owned_as_residence + MOVE_BACK_YEARS
-        total_yrs = years_owned_as_residence + years + MOVE_BACK_YEARS
-        qualified_fraction = min(1.0, residence_yrs / total_yrs)
-        return min(CG_EXCLUSION, appreciation_gain * qualified_fraction)
     return 0.0  # FULL_RENTAL, or WITHIN_3YR past the eligibility window
 
 
@@ -191,7 +185,6 @@ def tax_at_sale(
     cost_basis: float,
     treatment: Sec121,
     years: int,
-    years_owned_as_residence: float,
 ) -> SaleTax:
     """All taxes that land at the future sale of a property held as a rental.
 
@@ -237,7 +230,7 @@ def tax_at_sale(
     # Cap-gains slice = recognized gain ABOVE original cost basis (i.e. above the part
     # already taxed as §1250 recapture). Equivalent to max(0, realized − cost_basis).
     appreciation_gain = max(0.0, realized_amount - cost_basis)
-    excluded = excluded_gain(treatment, appreciation_gain, years, years_owned_as_residence)
+    excluded = excluded_gain(treatment, appreciation_gain, years)
     taxable_gain = max(0.0, appreciation_gain - excluded)
     # CAP_GAINS_RATE bundles NIIT (3.8%). Applying it to the POST-exclusion gain is
     # correct, NOT a bug: §121-excluded gain is excluded from gross income, and NIIT
@@ -561,7 +554,6 @@ class Model:
             p.cost_basis,
             sec121,
             years,
-            p.years_owned_as_residence,
         )
 
         # Reserve opportunity cost = the SPREAD you give up by holding. A landlord reserve

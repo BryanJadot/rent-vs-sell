@@ -75,15 +75,6 @@ def test_sale_costs_match_rate(m):
     assert abs(s.total_costs - m.p.home_value * assumptions.SALE_COST_RATE) < 1.0
 
 
-def test_move_back_exclusion_never_exceeds_cap_or_gain(m):
-    for y in assumptions.HORIZONS:
-        hr = m.hold_net_worth(
-            m.p.primary_rent, y, assumptions.PRIMARY_APPRECIATION, sec121=Sec121.MOVE_BACK
-        )
-        assert hr.excluded_gain <= CG_EXCLUSION + 1
-        assert hr.excluded_gain <= hr.appreciation_gain + 1
-
-
 def test_within_3yr_only_excludes_at_short_horizons(m):
     # At >SELL_SOON_MAX_YEARS the within_3yr treatment must NOT grant an exclusion.
     hr = m.hold_net_worth(
@@ -254,21 +245,19 @@ def test_hold_at_zero_years_is_equity_minus_gains_tax(fix):
 
 
 def test_excluded_gain_full_rental_is_zero():
-    assert excluded_gain(Sec121.FULL_RENTAL, 500_000, 10, 4.5) == 0.0
+    assert excluded_gain(Sec121.FULL_RENTAL, 500_000, 10) == 0.0
 
 
 def test_excluded_gain_within_3yr_capped_at_statutory_limit():
     # A gain larger than the cap is only excludable up to CG_EXCLUSION.
-    assert excluded_gain(Sec121.WITHIN_3YR, 500_000, 3, 4.5) == CG_EXCLUSION
+    assert excluded_gain(Sec121.WITHIN_3YR, 500_000, 3) == CG_EXCLUSION
     # A small gain is fully excluded.
-    assert excluded_gain(Sec121.WITHIN_3YR, 100_000, 3, 4.5) == 100_000
+    assert excluded_gain(Sec121.WITHIN_3YR, 100_000, 3) == 100_000
 
 
-def test_excluded_gain_move_back_prorates_by_qualified_use():
-    # residence (4.5 + 2) / total (4.5 + 10 + 2) of a $300k gain, capped at CG_EXCLUSION.
-    g = excluded_gain(Sec121.MOVE_BACK, 300_000, 10, 4.5)
-    frac = (4.5 + 2) / (4.5 + 10 + 2)
-    assert abs(g - min(CG_EXCLUSION, 300_000 * frac)) < 1.0
+def test_excluded_gain_within_3yr_lapses_past_window():
+    # Past SELL_SOON_MAX_YEARS the within_3yr treatment grants no exclusion.
+    assert excluded_gain(Sec121.WITHIN_3YR, 300_000, 10) == 0.0
 
 
 def test_tax_at_sale_signs_and_components():
@@ -283,7 +272,6 @@ def test_tax_at_sale_signs_and_components():
         cost_basis=1_000_000,
         treatment=Sec121.FULL_RENTAL,
         years=10,
-        years_owned_as_residence=4.5,
     )
     assert st.recapture > 0 and st.deprec_release > 0 and st.cap_gains_tax > 0
     assert st.excluded_gain == 0.0  # full rental → no exclusion
@@ -307,7 +295,6 @@ def test_recapture_capped_at_recognized_gain():
         cost_basis=1_000_000,
         treatment=Sec121.FULL_RENTAL,
         years=10,
-        years_owned_as_residence=4.5,
     )
     assert st.recapture == pytest.approx(100_000 * assumptions.DEPREC_RECAPTURE_RATE)
     assert st.appreciation_gain == 0.0 and st.cap_gains_tax == 0.0
@@ -319,7 +306,6 @@ def test_recapture_capped_at_recognized_gain():
         cost_basis=1_000_000,
         treatment=Sec121.FULL_RENTAL,
         years=10,
-        years_owned_as_residence=4.5,
     )
     assert st_loss.recapture == 0.0 and st_loss.cap_gains_tax == 0.0
 

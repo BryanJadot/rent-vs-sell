@@ -28,7 +28,9 @@ years_owned_as_residence = 4.5 # yrs lived in as primary residence before any re
 property_tax = 17_365.28       # = $1.4M negotiated assessed value × 1.24037714% effective rate;
                                #   grows at the 2% Prop 13 cap per assumptions.py (PROPERTY_TAX_GROWTH)
 insurance    = 3_070.00        # e.g. $2,390 home + $680 umbrella
-repairs      = 8_000.00        # year-1 maintenance/repairs
+repairs      = 14_952.00       # year-1 maintenance/repairs ≈ 1% of home value (the common
+                               #   rule of thumb for an older SF single-family home); grows at
+                               #   EXPENSE_GROWTH. Only the HOLD path bears this.
 
 # ── Rent (your local comps) ───────────────────────────────────────────────────
 rent_levels     = [4_500, 5_000, 5_500, 6_000]   # comps to evaluate
