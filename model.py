@@ -64,6 +64,7 @@ from assumptions import (
     HORIZONS,
     WORKED_EXAMPLE_HORIZON,
     MONTHS_PER_YEAR,
+    INFLATION_RATE,
 )
 
 
@@ -733,6 +734,11 @@ class Model:
 
         we = self.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
         hz = max(H)
+        # What a dollar at the longest horizon is worth in today's purchasing power,
+        # derived from INFLATION_RATE so the report's "worth ~X today" line can never
+        # drift from the constant (CLAUDE.md rule 3). Purely a reader aid — the model is
+        # nominal throughout and never discounts internally.
+        today_value_fraction = 1.0 / (1.0 + INFLATION_RATE) ** hz
 
         weh = WORKED_EXAMPLE_HORIZON
         cum_oop_10 = sum(-self._year_cash_flow(p.primary_rent, yr) for yr in range(weh))
@@ -814,6 +820,9 @@ class Model:
             # interpretation, produced downstream, not here.
             "cash_facts": {
                 "longest_horizon": hz,
+                "shortest_horizon": min(H),
+                "inflation_rate": INFLATION_RATE,
+                "today_value_fraction": today_value_fraction,
                 "cum_oop_10": cum_oop_10,
                 "yr1_oop": yr1_oop,
                 "yr10_oop": yr10_oop,

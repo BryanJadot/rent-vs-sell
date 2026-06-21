@@ -55,6 +55,12 @@ render.py           presentation: builds HTML (templates/) + text from the model
    If a number appears in a label or prose string, interpolate it from the constant —
    do not retype it. (A literal "$250k" in HTML that should be `CG_EXCLUSION` will
    silently drift when the constant changes.)
+   - This applies to *explanatory* figures too, not just the headline numbers. A
+     reader-aid like "a dollar 20 yrs out is worth ~half today" is a claim derived from
+     an assumption (`INFLATION_RATE`): add the constant to `assumptions.py`, compute the
+     figure in `compute()` (e.g. `today_value_fraction = 1/(1+INFLATION_RATE)**hz`), and
+     interpolate it — never assert "~3%" or "half" as prose. If you catch yourself typing
+     a number into a sentence to make the report clearer, that number needs a source.
 
 4. **Per-house vs. shared.** Before adding an input, decide: does it differ per house?
    → TOML + a `Property` field. Is it a market/tax/policy assumption reused across

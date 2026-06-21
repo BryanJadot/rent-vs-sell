@@ -25,9 +25,12 @@
   },
   "cash_facts": {
     "cum_oop_10": -344331.1210651803,
+    "inflation_rate": 0.03,
     "longest_horizon": 20,
     "mo_oop": -2699.6666666666665,
     "reserve_cost_yr": 1006.4000000000002,
+    "shortest_horizon": 3,
+    "today_value_fraction": 0.5536757541863345,
     "yr10_oop": -42369.29144733574,
     "yr1_oop": -32396.0
   },

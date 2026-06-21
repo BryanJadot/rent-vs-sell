@@ -3,8 +3,22 @@
 {% block body %}
   <h1>Rent vs. Sell — Data &amp; Numbers</h1>
   <p class="sub">{{ address }} · auto-generated {{ generated }}</p>
-  <div class="nav">📊 This page is computed data only — figures, sensitivities, and
-     explanations of how each number is built. It draws no conclusion about which choice to make.</div>
+
+  <div class="card">
+    <b>How to read this</b>
+    <p class="sub" style="margin-top:6px">This compares two paths for one house:</p>
+    <ul style="margin:0 0 8px">
+      <li><b>Sell now:</b> sell today, pay the costs and taxes, invest what's left in the market.</li>
+      <li><b>Hold:</b> keep it and rent it out, then sell later — paying the selling costs and taxes at that future sale too.</li>
+    </ul>
+    <p class="sub" style="margin:0">Each number is the <b>total wealth</b> a path leaves you with at a given future year
+    ({{ shortest_horizon }}–{{ longest_horizon }} yrs out),
+    after all costs and taxes on <i>both</i> sides, so the two are comparable. Figures are <b>nominal future dollars</b>
+    (not inflation-adjusted): at {{ '%g'|format(inflation_pct) }}% inflation, a dollar {{ longest_horizon }} years out is worth
+    about {{ '%.0f'|format(today_value_pct) }}&cent; in today's money — but since both paths are in the same future dollars, they
+    stay on a common basis. This page is computed <b>data only</b>:
+    figures, sensitivities, and how each number is built. It draws no conclusion about which choice to make.</p>
+  </div>
 
   <div class="card"><div class="grid">
     <div><div class="sub">Current value (Zestimate)</div><b>${{ '{:,.0f}'.format(home_value) }}</b></div>
@@ -28,9 +42,15 @@
   "Full rental" = sold as a rental, no §121 exclusion. "Hold ≤3 yrs" keeps the full ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 exclusion
   by selling before the 2-of-5-year residence test lapses (*so it only applies at ≤3 yrs). "Sell now + invest" proceeds are shown
   after-tax (investment gains taxed at sale, symmetric with the home's taxed gain).</p>
-  <div class="callout"><b>Units:</b> all figures are <b>nominal future dollars</b>. At ~3% inflation a dollar
-  {{ longest_horizon }} years out is worth roughly half a dollar today. Both paths are measured in the same
-  future dollars, so they are on a common basis.</div>
+  <h3>Break-even appreciation</h3>
+  <p class="sub">The home-appreciation rate at which holding ends up <b>exactly equal</b> to selling now and
+  investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate). Above this
+  rate the hold's ending wealth exceeds the sell path's; below it, it falls short. For context, SF Case-Shiller history:
+  {{ '%g'|format(be_low_pct) }}% (20-yr) / {{ '%g'|format(be_mod_pct) }}% (10-yr) / {{ '%g'|format(be_high_pct) }}% (30-yr) CAGR.</p>
+  <table>
+    <thead><tr><th>Break-even (both sides at {{ '%g'|format(be_opp_pct) }}%)</th>{{ hz_head }}</tr></thead>
+    <tbody>{{ be_row }}</tbody>
+  </table>
 
   <h3>Sensitivity to appreciation</h3>
   <p class="sub">Hold at ${{ '{:g}'.format(primary_rent/1000) }}k rent (full rental) under three home-appreciation
@@ -38,16 +58,6 @@
   <table>
     <thead><tr><th>If the home appreciates…</th>{{ hz_head }}</tr></thead>
     <tbody>{{ appr_rows }}</tbody>
-  </table>
-
-  <h3>Break-even appreciation</h3>
-  <p class="sub">The home-appreciation rate at which holding ends up <b>exactly equal</b> to selling now and
-  investing, at each horizon (both compounding at the {{ '%g'|format(be_opp_pct) }}% opportunity rate). Above this
-  rate the hold's ending wealth exceeds the sell path's; below it, it falls short. Compare to the SF Case-Shiller history used above:
-  {{ '%g'|format(be_low_pct) }}% (20-yr) / {{ '%g'|format(be_mod_pct) }}% (10-yr) / {{ '%g'|format(be_high_pct) }}% (30-yr) CAGR.</p>
-  <table>
-    <thead><tr><th>Break-even (both sides at {{ '%g'|format(be_opp_pct) }}%)</th>{{ hz_head }}</tr></thead>
-    <tbody>{{ be_row }}</tbody>
   </table>
 
   <h3>Sensitivity to rent growth</h3>

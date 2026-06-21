@@ -69,6 +69,12 @@ TENANCY_YEARS = 2.0  # avg tenant stay; leasing fee amortized over this
 LEASING_FEE_MONTHS = 1.0  # tenant-placement fee = 1 month's rent per turnover
 RENT_GROWTH = 0.03  # SF ZORI history (2.7% 10-yr); decoupled from appr.
 
+# Used ONLY to express nominal future dollars in today's terms for the reader (the
+# model itself is fully nominal — both paths in the same future dollars, so it never
+# discounts internally). ~long-run US CPI. The "worth ~X today" figure in the report
+# is derived from this (1/(1+rate)**years), never retyped — see model.compute().
+INFLATION_RATE = 0.03
+
 MONTHS_PER_YEAR = 12
 
 # ── Tax-rate components (each real-world rate defined ONCE, composed below) ────
