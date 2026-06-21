@@ -1989,6 +1989,8 @@
         "monthly_rent": 5000,
         "noi": 36580.0,
         "op_expenses": 20420.0,
+        "other_fixed": 5500.0,
+        "prop_tax": 9000.0,
         "vacancy": 3000.0
       }
     },
@@ -2012,6 +2014,8 @@
         "monthly_rent": 6000,
         "noi": 46796.0,
         "op_expenses": 21604.0,
+        "other_fixed": 5500.0,
+        "prop_tax": 9000.0,
         "vacancy": 3600.0
       }
     },
@@ -2035,6 +2039,8 @@
         "monthly_rent": 7000,
         "noi": 57012.0,
         "op_expenses": 22788.0,
+        "other_fixed": 5500.0,
+        "prop_tax": 9000.0,
         "vacancy": 4200.0
       }
     },
@@ -2058,6 +2064,8 @@
         "monthly_rent": 8000,
         "noi": 67228.0,
         "op_expenses": 23972.0,
+        "other_fixed": 5500.0,
+        "prop_tax": 9000.0,
         "vacancy": 4800.0
       }
     }

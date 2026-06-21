@@ -89,7 +89,9 @@ class Rent:
     egi: float
     mgmt: float
     leasing: float
-    fixed_costs: float
+    prop_tax: float  # property tax component of fixed_costs
+    other_fixed: float  # insurance + repairs component of fixed_costs
+    fixed_costs: float  # = prop_tax + other_fixed
     op_expenses: float
     noi: float
     annual_pi: float
@@ -368,6 +370,8 @@ class Model:
             egi,
             mgmt,
             leasing,
+            prop_tax,
+            other_fixed,
             fixed,
             op,
             noi,
