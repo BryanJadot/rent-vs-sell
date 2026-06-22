@@ -610,7 +610,7 @@ if (typeof document !== "undefined") {
       ["A major repair (roof/foundation), net of tax", r.major_repair],
     ];
     let body =
-      `<tr class="primary"><td>A <b>normal</b> year already costs</td>` +
+      `<tr><td>A <b>normal</b> year already costs</td>` +
       `<td class="num-bad">${neg(r.baseline)}</td></tr>` +
       `<tr><td colspan="2" class="sub">Any <b>one</b> bad event that year adds, on its own ` +
       `(they don't stack):</td></tr>`;

@@ -363,7 +363,7 @@ def _badyear_table_html(m: Model, rent: float) -> str:
         ("A major repair (roof/foundation), net of tax", r["major_repair"]),
     ]
     body = (
-        f'<tr class="primary"><td>A <b>normal</b> year already costs</td>'
+        f"<tr><td>A <b>normal</b> year already costs</td>"
         f'<td class="num-bad">−{abs(r["baseline"]):,.0f}</td></tr>'
         f'<tr><td colspan="2" class="sub">Any <b>one</b> bad event that year adds, on its own '
         f"(they don't stack):</td></tr>"
