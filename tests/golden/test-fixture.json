@@ -2559,12 +2559,12 @@
   "risk": {
     "baseline": 32396.0,
     "eviction": -12000,
-    "extra_vacancy": -18000,
+    "extra_vacancy": -14400.0,
     "major_repair": -25160.0,
     "major_repair_gross": -40000,
     "worst_case_is_compound": true,
-    "worst_extra": -55160.0,
-    "worst_total": -22764.0
+    "worst_extra": -51560.0,
+    "worst_total": -19164.0
   },
   "sell": {
     "broker": 60000.0,

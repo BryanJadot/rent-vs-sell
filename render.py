@@ -350,7 +350,7 @@ def _badyear_table_html(m: Model, rent: float) -> str:
     base = r["baseline"]
     scen = [
         ("Normal year (baseline)", 0.0, base),
-        ("+ 3 months extra vacancy", r["extra_vacancy"], base + r["extra_vacancy"]),
+        ("+ A long vacancy (above normal turnover)", r["extra_vacancy"], base + r["extra_vacancy"]),
         ("+ Non-paying tenant + eviction", r["eviction"], base + r["eviction"]),
         (
             "+ Major repair (roof/foundation), net of tax",
@@ -377,14 +377,12 @@ def build_context(m: Model) -> dict:
     p = m.p
     sell = m.calc_sell()
     H = HORIZONS
-    hz_head = "".join(f"<th>{y}-yr</th>" for y in H)
     computed = m.compute()  # one call; index the slices below (compute() is the contract)
 
     # Live net-worth chart seed (the static sensitivity tables it used to sit beside —
     # headline, by-appreciation, rent-growth, market-return, break-even — are subsumed by
     # the sliders + the live horizon table, so they're gone). Numbers come from compute().
     be_chart_svg = _break_even_svg(computed["break_even_chart"])
-    be_chart_horizon = computed["break_even_chart"]["horizon"]
 
     # Server-rendered seed for the live horizon table, at the base-case slider defaults
     # (PRIMARY_APPRECIATION / RENT_GROWTH / PRIMARY_INVEST). Identical layout to the JS
@@ -547,15 +545,23 @@ def build_context(m: Model) -> dict:
     with open(os.path.join("static", "model.js")) as f:
         model_js = f.read()
     # Slider defaults = the model's base case; ranges decided tight around realistic SF.
-    slider_appr_default = PRIMARY_APPRECIATION * 100
-    slider_rent_default = RENT_GROWTH * 100  # rent-GROWTH slider (%/yr)
-    slider_market_default = PRIMARY_INVEST * 100
+    # Rounded to the slider step (0.1) to avoid float noise like 4.8500000000000005 in the
+    # value attribute — the engine still reads the true constant via PARAMS, this is display.
+    slider_appr_default = round(PRIMARY_APPRECIATION * 100, 2)
+    slider_rent_default = round(RENT_GROWTH * 100, 2)  # rent-GROWTH slider (%/yr)
+    slider_market_default = round(PRIMARY_INVEST * 100, 2)
     # Rent-LEVEL slider ($/mo): default is the property's primary rent; range decided
     # $4,000–$6,500 step $250 (spans the comps with room to probe past them).
     slider_rentlevel_default = p.primary_rent
     slider_rentlevel_min = 4000
     slider_rentlevel_max = 6500
     slider_rentlevel_step = 250
+    # Percent-slider ranges (decided tight around realistic SF). Defined here, not retyped
+    # in the template (Rule 3): the % sliders share one step. Ranges in PERCENT units.
+    slider_pct_step = 0.1
+    slider_appr_min, slider_appr_max = 0, 7
+    slider_rent_min, slider_rent_max = 1, 6
+    slider_market_min, slider_market_max = 4, 10
 
     # Gain/loss flag for sale-side labels (factual, drives wording not judgment).
     sells_at_loss = sell.capital_gain < 0
@@ -575,7 +581,6 @@ def build_context(m: Model) -> dict:
         "deprec_recapture_rate": DEPREC_RECAPTURE_RATE,
         "annual_depreciation": m.annual_depreciation,
         "cash_reserve": p.cash_reserve,
-        "rent_growth": RENT_GROWTH,
         "primary_rent": p.primary_rent,
         "cg_exclusion": CG_EXCLUSION,
         "sale_cost_rate": SALE_COST_RATE,
@@ -594,9 +599,7 @@ def build_context(m: Model) -> dict:
         "we": we,
         "deprec_net": f"{we.deprec_release - we.recapture:+,.0f}",
         "sells_at_loss": sells_at_loss,
-        "hz_head": M(hz_head),
         "be_chart_svg": M(be_chart_svg),
-        "be_chart_horizon": be_chart_horizon,
         "be_table_seed": M(be_table_seed),
         "cashflow_svg": M(cashflow_svg),
         "cashflow_table_seed": M(cashflow_table_seed),
@@ -614,8 +617,14 @@ def build_context(m: Model) -> dict:
         "slider_rentlevel_min": slider_rentlevel_min,
         "slider_rentlevel_max": slider_rentlevel_max,
         "slider_rentlevel_step": slider_rentlevel_step,
+        "slider_pct_step": slider_pct_step,
+        "slider_appr_min": slider_appr_min,
+        "slider_appr_max": slider_appr_max,
+        "slider_rent_min": slider_rent_min,
+        "slider_rent_max": slider_rent_max,
+        "slider_market_min": slider_market_min,
+        "slider_market_max": slider_market_max,
         "assumption_rows": M(assumption_rows),
-        "reserve_cost_yr": v["reserve_cost_yr"],
     }
 
 

@@ -433,13 +433,19 @@ class Model:
         The worst case stacks all three in one year — independent and individually unlikely
         (probabilities in assumptions.py), so a deliberately pessimistic tail. The major
         repair is carried at its NET (post-tax-recovery) cost (it's a capital improvement,
-        added to basis), consistent with expected_risk_drag. All figures signed: outflows
-        negative."""
+        added to basis). All figures signed: outflows negative.
+
+        VACANCY CONVENTION: the incremental vacancy hit charges only the EXCESS months over
+        the baseline (excess_vacancy_months = BAD_VACANCY_MONTHS − the normal vacancy already
+        netted into `base` via the 5% VACANCY_RATE) — the SAME convention as
+        expected_risk_drag, so the bad-year table and the risk drag don't double-count the
+        baseline vacancy."""
         base = self.oop_breakdown(monthly_rent).net
-        worst_extra = BAD_VACANCY_MONTHS * monthly_rent + EVICTION_COST + self.net_major_repair
+        extra_vacancy_cost = self.excess_vacancy_months * monthly_rent
+        worst_extra = extra_vacancy_cost + EVICTION_COST + self.net_major_repair
         return {
             "baseline": base,
-            "extra_vacancy": -BAD_VACANCY_MONTHS * monthly_rent,
+            "extra_vacancy": -extra_vacancy_cost,
             "eviction": -EVICTION_COST,
             "major_repair": -self.net_major_repair,
             "major_repair_gross": -MAJOR_REPAIR,

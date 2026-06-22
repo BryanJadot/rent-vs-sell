@@ -42,11 +42,11 @@
   <div class="sliderbar">
     <div class="sliders">
       <label>Home appreciation <span class="slider-val" id="val-appr">{{ '%g'|format(slider_appr_default) }}%</span>
-        <input type="range" id="slider-appr" min="0" max="7" step="0.1" value="{{ slider_appr_default }}"></label>
+        <input type="range" id="slider-appr" min="{{ slider_appr_min }}" max="{{ slider_appr_max }}" step="{{ slider_pct_step }}" value="{{ slider_appr_default }}"></label>
       <label>Rent growth <span class="slider-val" id="val-rent">{{ '%g'|format(slider_rent_default) }}%</span>
-        <input type="range" id="slider-rent" min="1" max="6" step="0.1" value="{{ slider_rent_default }}"></label>
+        <input type="range" id="slider-rent" min="{{ slider_rent_min }}" max="{{ slider_rent_max }}" step="{{ slider_pct_step }}" value="{{ slider_rent_default }}"></label>
       <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
-        <input type="range" id="slider-market" min="4" max="10" step="0.1" value="{{ slider_market_default }}"></label>
+        <input type="range" id="slider-market" min="{{ slider_market_min }}" max="{{ slider_market_max }}" step="{{ slider_pct_step }}" value="{{ slider_market_default }}"></label>
       <label>Rent level <span class="slider-val" id="val-rentlevel">${{ '{:,.0f}'.format(slider_rentlevel_default) }}/mo</span>
         <input type="range" id="slider-rentlevel" min="{{ slider_rentlevel_min }}" max="{{ slider_rentlevel_max }}"
           step="{{ slider_rentlevel_step }}" value="{{ slider_rentlevel_default }}"></label>
@@ -79,8 +79,8 @@
     tick is the year the mortgage is paid off (the Hold curve bends there as the P&amp;I payment ends).</p>
   </div>
   <p class="legend">A held rental forfeits the §{{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale exclusion. Selling
-  <b>within 3 years</b> still keeps it (the 2-of-5-year residence test) — worth about
-  ${{ '{:,.0f}'.format(sec121_benefit_3yr) }} at 3 years here; past that it lapses.</p>
+  <b>within {{ sell_soon_max_years }} years</b> still keeps it (the 2-of-5-year residence test) — worth about
+  ${{ '{:,.0f}'.format(sec121_benefit_3yr) }} at {{ sell_soon_max_years }} years here; past that it lapses.</p>
 
   <!-- ===== 2. WHAT EACH PATH ASKS OF YOU ===== -->
   <h2>2. What each path asks of you</h2>
@@ -103,7 +103,7 @@
         <li>no monthly property cash to fund and no tenants to manage</li>
         <li>proceeds spreadable across many holdings; value swings with the market</li>
         <li>no landlord or just-cause obligations once sold</li>
-        <li>the gain (if any) taxed now (detail in §4)</li>
+        <li>the gain (if any) taxed now (detail in §3)</li>
       </ul>
     </div>
   </div>
@@ -125,24 +125,16 @@
   <h4 style="margin:18px 0 4px;color:var(--accent);font-size:14px">What a bad year costs</h4>
   <p class="sub" style="margin:0 0 6px">A normal year already costs cash out of pocket; each row adds <b>one</b> bad event to that
   baseline, so the rows stand alone (they don't add together). The worst case stacks all three — individually uncommon
-  (probabilities in §5), so a deliberately pessimistic tail. Moves with the <b>rent</b> slider.</p>
+  (probabilities in §4), so a deliberately pessimistic tail. Moves with the <b>rent</b> slider.</p>
   <table id="be-badyear-table-live">{{ badyear_table_seed }}</table>
   <p class="legend" style="margin-top:6px">The major repair is shown net of its tax recovery (it adds to basis). The reserve held
   for this is ${{ '{:,.0f}'.format(cash_reserve) }}.</p>
 
-  <!-- ===== 3. OTHER FACTORS ===== -->
-  <h2>3. Other factors you might weigh</h2>
-  <p class="sub">Things people often ask about, with how much they change the picture.</p>
-  <ul>
-    <li><b>Rent level.</b> Use the <b>rent</b> slider above to see how the figures move across the comp range — every chart and
-      table updates with it.</li>
-    <li><b>Cap-gains &amp; depreciation-recapture rates.</b> Applied symmetrically — they tax the home's gain and the sell side's
-      investment gain on the same footing. The component rates are in §5; the mechanics are in §4.</li>
-  </ul>
-
-  <!-- ===== 4. SHOW YOUR WORK ===== -->
-  <h2>4. Show your work — how each number is built</h2>
-  <p class="sub">The full derivation behind the figures above, for anyone who wants to trace or check them.</p>
+  <!-- ===== 3. SHOW YOUR WORK ===== -->
+  <h2>3. Show your work — how each number is built</h2>
+  <p class="sub">The full derivation behind the figures above, for anyone who wants to trace or check them. Cap-gains and
+  depreciation-recapture are applied <b>symmetrically</b> — they tax the home's gain and the sell side's investment gain on the
+  same footing (component rates in §4).</p>
 
   <details>
     <summary>How a "Hold" number is built ({{ worked_horizon }}-yr, ${{ '{:g}'.format(primary_rent/1000) }}k rent, full rental) → ${{ '{:,.0f}'.format(we.net_worth) }}</summary>
@@ -195,8 +187,8 @@
     </table>
   </details>
 
-  <!-- ===== 5. ASSUMPTIONS ===== -->
-  <h2>5. Every assumption, and where it came from</h2>
+  <!-- ===== 4. ASSUMPTIONS ===== -->
+  <h2>4. Every assumption, and where it came from</h2>
   <table>
     <thead><tr><th>Assumption</th><th>Value</th><th>Source / rationale</th></tr></thead>
     <tbody>{{ assumption_rows }}</tbody>

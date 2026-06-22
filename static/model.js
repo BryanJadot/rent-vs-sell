@@ -226,11 +226,14 @@ function oopBreakdown(P, monthlyRent) {
 function riskScenarios(P, monthlyRent) {
   // Mirror of Model.risk_scenarios — bad-year incremental costs at this rent (signed,
   // outflows negative). Each event is added to the baseline independently (rows stand alone).
+  // Incremental vacancy charges only the EXCESS months over the baseline 5% already netted
+  // into `base` — same convention as expectedRiskDrag (mirror of Model.risk_scenarios).
   const base = oopBreakdown(P, monthlyRent).net;
-  const worstExtra = P.bad_vacancy_months * monthlyRent + P.eviction_cost + netMajorRepair(P);
+  const extraVacancyCost = excessVacancyMonths(P) * monthlyRent;
+  const worstExtra = extraVacancyCost + P.eviction_cost + netMajorRepair(P);
   return {
     baseline: base,
-    extra_vacancy: -P.bad_vacancy_months * monthlyRent,
+    extra_vacancy: -extraVacancyCost,
     eviction: -P.eviction_cost,
     major_repair: -netMajorRepair(P),
     worst_extra: -worstExtra,
@@ -596,7 +599,7 @@ if (typeof document !== "undefined") {
     const base = r.baseline;
     const scen = [
       ["Normal year (baseline)", 0, base],
-      ["+ 3 months extra vacancy", r.extra_vacancy, base + r.extra_vacancy],
+      ["+ A long vacancy (above normal turnover)", r.extra_vacancy, base + r.extra_vacancy],
       ["+ Non-paying tenant + eviction", r.eviction, base + r.eviction],
       ["+ Major repair (roof/foundation), net of tax", r.major_repair, base + r.major_repair],
     ];
