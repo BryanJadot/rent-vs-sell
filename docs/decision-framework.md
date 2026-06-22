@@ -108,12 +108,17 @@ harder to sell vacant later. The model prices *cash* costs (management %, vacanc
 *your time and stress*. That's a real subtraction from the premium you have to make
 yourself.
 
-### 3. It's leverage-fragile
+### 3. The leverage edge melts as you pay the loan down
 
-The entire middle-band edge exists **because of the 2.25% mortgage.** It is not robust to
-that assumption:
-- A higher mortgage rate, less leverage, or a cash-out refi shrinks early g(S) → pulls the
-  thresholds up → pushes you toward selling sooner.
+The entire middle-band edge exists **because of the cheap 2.25% mortgage.** The rate itself
+is *not* a risk — it's a **30-year fixed**, locked by contract, so it can't reset on you
+(that's a point in the strategy's favor, not a fragility). The edge still fades, but for a
+mechanical reason: **the *amount* of cheap leverage shrinks every month as you amortize.**
+As equity grows and the borrowed slice shrinks, the same house-level gain rides a bigger
+stake of your own money, so the levered g(S) decays toward the unlevered appreciation rate.
+- The thing that *would* pull the thresholds up (toward selling sooner) is **less leverage
+  to begin with** — a bigger down payment, or a cash-out refi that pulls equity back out
+  and re-levers — not the fixed rate moving.
 - If you would have to **sell stock to fund the $90k landlord reserve** (Scenario B), there's
   a small one-time cap-gains tax (~$8k–$25k depending on your embedded stock gain) that
   lands only on the Hold side. It's second-order vs. the headline gap, but it tilts slightly
@@ -138,7 +143,8 @@ prediction.
    against the three costs above:
    - Can I self-insure an ~$86k bad year over a *short* hold without it wrecking the thesis?
    - Is the per-year premium worth my time as a landlord?
-   - Is my leverage assumption (the 2.25% loan) actually going to persist?
+   (The 2.25% loan is a 30-yr fixed, so the rate isn't a risk — it makes the early edge
+   durable; only *less* leverage, e.g. a cash-out refi, would weaken it.)
 4. **Stress-test the belief, not just the point.** Drag appreciation down a band and up a
    band. If the action is stable across your *plausible* range, decide with confidence. If
    it flips between bands inside that range, the honest answer is "it depends on appreciation

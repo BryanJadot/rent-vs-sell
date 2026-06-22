@@ -208,12 +208,18 @@ rules about renting and evicting, and the headache of selling a house that has p
 in it. The math counts the *cash* costs but not your *time and stress*. That's a real cost you
 subtract yourself.
 
-### Catch 3: The whole edge depends on that cheap loan
+### Catch 3: The leverage boost melts away as you pay off the loan
 
-Remember the magic 17% came from leverage — borrowing at a cheap **2.25%** while the house
-grows faster. If the loan rate were higher, or you'd borrowed less, that early boost shrinks
-and the answer tilts toward selling sooner. The strategy is **fragile**: it works *because*
-the borrowed money is cheap.
+Remember the magic 17% came from leverage — borrowing a lot at a cheap **2.25%** while the
+house grows faster. Good news: this loan is a **30-year fixed**, so the *rate* is locked by
+contract — it can never jump up on you. That part is safe.
+
+But the *boost* still fades, for a different reason: every month you pay the loan down a
+little, so you own more of the house and owe the bank less. The "small slice riding the
+whole house" trick gets weaker as your slice gets bigger — which is exactly why the ~17%
+drifts toward 4.5% over time (the decay from Part 2). The thing that would weaken the boost
+*from the start* is **borrowing less** (a bigger down payment), not the rate changing — and
+that's not your situation.
 
 ### Catch 4: You might have to dip into savings to be a landlord
 
@@ -234,7 +240,6 @@ choice, nudging things slightly toward selling.
 3. **If you land in the middle bucket, sanity-check it against the catches:**
    - Could I survive an ~$86,000 bad year over a short hold without it wrecking my profit?
    - Is the extra money worth 2–3 years of being a landlord?
-   - Am I sure that cheap loan is going to stick around?
 4. **Test how sure you are.** Nudge your appreciation guess up a bit and down a bit. If the
    answer (the bucket) stays the same across guesses you find believable → decide
    confidently. If a small change in your guess flips the bucket → the honest truth is "this
@@ -251,4 +256,5 @@ choice, nudging things slightly toward selling.
 > For this house, that's around **year 3** — which also happens to be the deadline for a big
 > tax break — *as long as* you believe the house will appreciate somewhere in the 2–5%/year
 > range, and you're okay with the bad-luck risk and the work of renting it out for those few
-> years.
+> years. (The cheap loan being a 30-year fixed makes the head start *durable* — it's the only
+> part here that isn't a risk.)
