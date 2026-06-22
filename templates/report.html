@@ -36,26 +36,10 @@
     </ul>
   </div>
 
-  <!-- ===== 1. THE MONEY ===== -->
-  <h2>1. The money — what each path is worth</h2>
-  <p class="sub">Total wealth each path leaves you with at each horizon, fully loaded (all costs and taxes on both sides).</p>
-  <table>
-    <thead><tr><th>Option (main case: {{ '%g'|format(primary_appreciation*100) }}% appreciation)</th>{{ hz_head }}</tr></thead>
-    <tbody>{{ headline_rows }}</tbody>
-  </table>
-  <p class="legend">"Full rental" = sold as a rental (no §121 break). "Sell within 3 yrs" is the only hold option that still
-  keeps the ${{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale break — it lapses once you've rented past the 2-of-5-year
-  residence test. "Sell now + invest" is shown after-tax, the same way the home's gain is taxed.</p>
-
-  <h3>Hold vs. Sell over time — set your own assumptions</h3>
-  <p class="sub">How each path's total wealth grows with the number of years you hold before selling. For context, SF Case-Shiller
-  appreciation history is {{ '%g'|format(be_low_pct) }}% / {{ '%g'|format(be_mod_pct) }}% / {{ '%g'|format(be_high_pct) }}% per year (20/10/30-yr).</p>
-  <div class="card" style="margin:10px 0">
-    <p class="sub" style="margin:0 0 10px"><b>Set your own assumptions.</b> Drag the three sliders to your beliefs about how the
-    home appreciates, how rent grows, and what the market returns. Both curves, where they cross, and the table and readout below
-    redraw live. (Figures only — this draws no conclusion.) Held fixed: rent at ${{ '{:g}'.format(primary_rent/1000) }}k/mo and a
-    full-rental sale (no §121); vary those in the tables further down.</p>
-
+  <!-- ===== GLOBAL STICKY SLIDER BAR ===== -->
+  <!-- One control set, pinned, driving every live chart/table on the page (JS binds by id,
+       so it works across sections). Hidden in print, where the server-rendered seeds stand in. -->
+  <div class="sliderbar">
     <div class="sliders">
       <label>Home appreciation <span class="slider-val" id="val-appr">{{ '%g'|format(slider_appr_default) }}%</span>
         <input type="range" id="slider-appr" min="0" max="7" step="0.1" value="{{ slider_appr_default }}"></label>
@@ -63,138 +47,95 @@
         <input type="range" id="slider-rent" min="1" max="6" step="0.1" value="{{ slider_rent_default }}"></label>
       <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
         <input type="range" id="slider-market" min="4" max="10" step="0.1" value="{{ slider_market_default }}"></label>
+      <label>Rent level <span class="slider-val" id="val-rentlevel">${{ '{:,.0f}'.format(slider_rentlevel_default) }}/mo</span>
+        <input type="range" id="slider-rentlevel" min="{{ slider_rentlevel_min }}" max="{{ slider_rentlevel_max }}"
+          step="{{ slider_rentlevel_step }}" value="{{ slider_rentlevel_default }}"></label>
     </div>
+    <noscript><p class="legend" style="margin:6px 0 0"><b>Interactive controls need JavaScript.</b> The charts and tables below
+    show the same data at fixed assumption points.</p></noscript>
+  </div>
 
-    <noscript><p class="legend" style="margin:8px 0 0"><b>Interactive controls need JavaScript.</b> The table and chart below
-    (and the tables further down) show the same data at fixed assumption points.</p></noscript>
+  <!-- ===== 1. THE MONEY ===== -->
+  <h2>1. The money — what each path is worth</h2>
+  <p class="sub">Total wealth each path leaves you with at each horizon, fully loaded (all costs and taxes on both sides) —
+  at the assumptions you set with the sliders above.</p>
 
+  <h3>Hold vs. Sell over time</h3>
+  <p class="sub">How each path's total wealth grows with the number of years you hold before selling. The break-even
+  appreciation (where Hold ties Sell), and the effect of a different rent, rent-growth, or market return, are all here — set the
+  sliders and read the table and the crossover. (Figures only — this draws no conclusion.)</p>
+  <div class="card" style="margin:10px 0">
     <!-- Live table (JS swaps its contents). Seeded server-side at the base case so it shows
          before JS runs, when JS is off, and in print. -->
     <table id="be-table-live">{{ be_table_seed }}</table>
-    <p class="legend" style="margin:0 0 10px">Total wealth each path leaves you with at each horizon, at the assumptions set above.
-    "Hold − Sell" is the difference (＋ means the Hold figure is larger, − means Sell).</p>
+    <p class="legend" style="margin:0 0 10px">Total wealth each path leaves you with at each horizon, at the assumptions set on
+    the sliders. "Hold − Sell" is the difference (＋ means the Hold figure is larger, − means Sell).</p>
 
-    <!-- Live chart (JS swaps its contents). Seeded with the server-rendered SVG so it
-         shows before JS runs, when JS is off, and in print. -->
+    <!-- Live net-worth chart (JS swaps its contents). Server-seeded for no-JS / print. -->
     <div id="be-chart-live">{{ be_chart_svg }}</div>
-
     <p id="be-readout" class="readout">Drag a slider to see the live figures.</p>
-
     <p class="legend" style="margin-top:8px">Each curve is total wealth at that holding length: <b>Hold</b> (blue, keep &amp; rent
     then sell) vs. <b>Sell now</b> (green, sell today and invest the proceeds). The black dot marks where they cross; the dashed
     tick is the year the mortgage is paid off (the Hold curve bends there as the P&amp;I payment ends).</p>
-
-    <h4 style="margin:20px 0 4px;color:var(--accent);font-size:14px">Cash in and out, year by year</h4>
-    <p class="sub" style="margin:0 0 6px">What the property actually puts in or takes out of your pocket each year — the cash you
-    <b>fund it with</b>, separate from the wealth it builds. (Only rent growth moves this; appreciation and market return don't
-    change the yearly cash.)</p>
-    <div id="cashflow-chart-live">{{ cashflow_svg }}</div>
-    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) is the yearly rent minus operating costs minus the mortgage —
-    negative while the loan runs (rent doesn't cover it), turning positive once the loan is paid off (dashed tick). <b>Sell now</b>
-    (green, flat $0): the proceeds are invested and compound untouched, so there's no yearly cash in or out.</p>
   </div>
-  <table>
-    <thead><tr><th>Break-even appreciation (both sides earn {{ '%g'|format(be_opp_pct) }}% market return)</th>{{ hz_head }}</tr></thead>
-    <tbody>{{ be_row }}</tbody>
-  </table>
-  <p class="sub" style="margin-top:6px">The required rate <b>rises</b> with the horizon: selling now puts cash to work in the
-  market immediately, and that head start compounds — so the longer you hold, the faster the house must grow to keep pace.</p>
-  <details style="margin-top:8px">
-    <summary>Exact figures at each appreciation rate</summary>
-    <table style="margin-top:8px">
-      <thead><tr><th>If the home appreciates…</th>{{ hz_head }}</tr></thead>
-      <tbody>{{ appr_rows }}</tbody>
-    </table>
-  </details>
-
-  <h3>If our other assumptions are off</h3>
-  <p class="sub">Each table moves <b>one</b> assumption and holds the rest at the base case. Where only Hold rows are shown,
-  the matching Sell figures are in the table at the top (selling isn't affected by how the house performs after you've sold).</p>
-
-  <p class="sub" style="margin-top:10px"><b>Rent growth</b> — base case {{ '%g'|format(rg_low_pct) }}%/yr (recent SF history),
-  shown also at a rate matching home appreciation.</p>
-  <table>
-    <thead><tr><th>If rent grows…</th>{{ hz_head }}</tr></thead>
-    <tbody>{{ rg_rows }}</tbody>
-  </table>
-
-  <p class="sub" style="margin-top:10px"><b>Market return</b> — the rate money earns, applied to <b>both</b> paths (the sold
-  proceeds, and the cash the rental consumes). The two paths put different amounts to work, so a higher rate doesn't move them equally.</p>
-  <table>
-    <thead><tr><th>If money earns…</th>{{ hz_head }}</tr></thead>
-    <tbody>{{ rate_rows }}</tbody>
-  </table>
+  <p class="legend">A held rental forfeits the §{{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale exclusion. Selling
+  <b>within 3 years</b> still keeps it (the 2-of-5-year residence test) — worth about
+  ${{ '{:,.0f}'.format(sec121_benefit_3yr) }} at 3 years here; past that it lapses.</p>
 
   <!-- ===== 2. WHAT EACH PATH ASKS OF YOU ===== -->
   <h2>2. What each path asks of you</h2>
-  <p class="sub">Beyond the dollars: what holding vs. selling actually involves. Stated as facts for each side, not advice.</p>
-  <table>
-    <thead><tr><th>Hold (keep &amp; rent)</th><th>Sell now</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>Effort:</b> you run a rental — tenants, repairs, turnover, management.</td>
-        <td><b>Effort:</b> you manage a brokerage account.</td>
-      </tr>
-      <tr>
-        <td><b>Monthly money:</b> the property draws about −${{ '{:,.0f}'.format(-base_oop/12) }}/mo at ${{ '{:g}'.format(primary_rent/1000) }}k rent (detail below), funded from savings.</td>
-        <td><b>Monthly money:</b> the invested proceeds can pay out income (≈${{ '{:,.0f}'.format(inc_lo/12) }}–${{ '{:,.0f}'.format(inc_hi/12) }}/mo pre-tax).</td>
-      </tr>
-      <tr>
-        <td><b>Risk shape:</b> a bad year (long vacancy, eviction, major repair) can cost much more (detail below); reserve held ${{ '{:,.0f}'.format(cash_reserve) }}.</td>
-        <td><b>Risk shape:</b> the portfolio rises and falls with the market.</td>
-      </tr>
-      <tr>
-        <td><b>Diversification:</b> ~${{ '%.2f'|format(home_value/1e6) }}M stays in one mortgaged property.</td>
-        <td><b>Diversification:</b> the proceeds are liquid and can be spread across many holdings.</td>
-      </tr>
-      <tr>
-        <td><b>Taxes:</b> the gain is taxed later, at the future sale.</td>
-        <td><b>Taxes:</b> the gain (if any) is taxed now (detail in §4).</td>
-      </tr>
-      <tr>
-        <td><b>Rules:</b> as an SF rental it's under AB 1482 (keep the rent-cap exemption by serving the written notice) and just-cause eviction; a tenant-occupied home is harder to sell vacant.</td>
-        <td><b>Rules:</b> once sold, you're a former owner with no landlord obligations.</td>
-      </tr>
-    </tbody>
-  </table>
+  <p class="sub">Beyond the dollars — the non-financial trade-offs. Stated as facts for each side, not advice.</p>
+  <div class="grid">
+    <div>
+      <b>Holding means…</b>
+      <ul style="margin:6px 0 0">
+        <li>running a rental — tenants, repairs, turnover, management</li>
+        <li>funding a monthly cash drain out of savings (below) until the loan is paid off</li>
+        <li>wealth concentrated in one mortgaged, illiquid property</li>
+        <li>landlord duties: AB 1482 rent-cap (keep the exemption by serving the written notice) and just-cause eviction; a tenant-occupied home is harder to sell vacant</li>
+        <li>the gain taxed later, at the future sale</li>
+      </ul>
+    </div>
+    <div>
+      <b>Selling means…</b>
+      <ul style="margin:6px 0 0">
+        <li>managing a liquid, diversifiable portfolio instead of a property</li>
+        <li>no monthly property cash to fund and no tenants to manage</li>
+        <li>proceeds spreadable across many holdings; value swings with the market</li>
+        <li>no landlord or just-cause obligations once sold</li>
+        <li>the gain (if any) taxed now (detail in §4)</li>
+      </ul>
+    </div>
+  </div>
 
-  <h3>What holding costs month to month</h3>
-  <p class="sub">Real cash in and out of the bank account per year, at year-1 rent.</p>
-  <table>
-    <thead><tr><th>Cash item</th>{{ oop_head }}</tr></thead>
-    <tbody>
-      <tr><td>Rent collected (net of vacancy)</td>{{ oop_rows[0] }}</tr>
-      <tr><td>Mortgage payment (principal &amp; interest)</td>{{ oop_rows[1] }}</tr>
-      <tr><td>Property tax</td>{{ opex_part_rows['prop_tax'] }}</tr>
-      <tr><td>Insurance</td>{{ opex_part_rows['insurance'] }}</tr>
-      <tr><td>Repairs / maintenance</td>{{ opex_part_rows['repairs'] }}</tr>
-      <tr><td>Management &amp; leasing</td>{{ opex_part_rows['mgmt'] }}</tr>
-      <tr><td>Yearly depreciation tax break <span class="pill">none — see §4</span></td>{{ oop_rows[3] }}</tr>
-      <tr class="total"><td>Net cash flow / yr</td>{{ oop_net }}</tr>
-      <tr class="total"><td>…per month</td>{{ oop_mo }}</tr>
-    </tbody>
-  </table>
-  <p class="sub">For comparison, the sale proceeds invested would generate about <b>${{ '{:,.0f}'.format(inc_lo/12) }}/mo</b>
-  (at {{ '%g'|format(invest_lo*100) }}%) to <b>${{ '{:,.0f}'.format(inc_hi/12) }}/mo</b> (at {{ '%g'|format(invest_hi*100) }}%) pre-tax, with no property to fund.</p>
+  <h3>What holding costs, year by year</h3>
+  <p class="sub">What the property actually puts in or takes out of your pocket each year — the cash you <b>fund it with</b>,
+  separate from the wealth it builds. Negative while the loan runs (rent doesn't cover it), turning positive once the mortgage is
+  paid off. Sell now is flat $0 (proceeds reinvested, nothing withdrawn). Moves with the <b>rent</b> slider.</p>
+  <div class="card" style="margin:10px 0">
+    <div id="cashflow-chart-live">{{ cashflow_svg }}</div>
+    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) = yearly rent − operating costs − mortgage; the dashed tick is the
+    year the loan is paid off. <b>Sell now</b> (green, flat $0).</p>
+  </div>
 
-  <h3>What holding costs in a bad year</h3>
-  <p class="sub">A normal year already costs −${{ '{:,.0f}'.format(-base_oop) }} out of pocket. Each row adds one bad event to that
-  baseline — so the rows stand alone, they don't add together.</p>
-  <table>
-    <thead><tr><th>Scenario (at ${{ '{:g}'.format(primary_rent/1000) }}k rent)</th><th>Added cost this event</th><th>Whole-year cash out</th></tr></thead>
-    <tbody>{{ risk_rows }}</tbody>
-  </table>
-  <p class="legend">The "worst case" stacks all three events in one year — each is individually uncommon (probabilities in §5),
-  so all three at once is a deliberately pessimistic tail. The major repair is shown net of its tax recovery (it adds to basis).
-  The worst-case year totals ~${{ '{:,.0f}'.format(-worst_total) }}, against the ${{ '{:,.0f}'.format(cash_reserve) }} reserve.</p>
+  <h4 style="margin:18px 0 4px;color:var(--accent);font-size:14px">The year-1 cash breakdown</h4>
+  <p class="sub" style="margin:0 0 6px">Real cash in and out of the bank account in the first year, at the rent set on the slider.</p>
+  <table id="be-cashflow-table-live">{{ cashflow_table_seed }}</table>
+
+  <h4 style="margin:18px 0 4px;color:var(--accent);font-size:14px">What a bad year costs</h4>
+  <p class="sub" style="margin:0 0 6px">A normal year already costs cash out of pocket; each row adds <b>one</b> bad event to that
+  baseline, so the rows stand alone (they don't add together). The worst case stacks all three — individually uncommon
+  (probabilities in §5), so a deliberately pessimistic tail. Moves with the <b>rent</b> slider.</p>
+  <table id="be-badyear-table-live">{{ badyear_table_seed }}</table>
+  <p class="legend" style="margin-top:6px">The major repair is shown net of its tax recovery (it adds to basis). The reserve held
+  for this is ${{ '{:,.0f}'.format(cash_reserve) }}.</p>
 
   <!-- ===== 3. OTHER FACTORS ===== -->
   <h2>3. Other factors you might weigh</h2>
   <p class="sub">Things people often ask about, with how much they change the picture.</p>
   <ul>
-    <li><b>Rent level.</b> Both rents are shown throughout (${{ '{:g}'.format(primary_rent/1000) }}k and the higher figure).
-      Across a ${{ '{:g}'.format(rent_lo/1000) }}k–${{ '{:g}'.format(rent_hi/1000) }}k range, the {{ longest_horizon }}-yr hold figure spans
-      ${{ '{:,.0f}'.format(rent_lo_nw) }} to ${{ '{:,.0f}'.format(rent_hi_nw) }}.</li>
+    <li><b>Rent level.</b> Use the <b>rent</b> slider above to see how the figures move across the comp range — every chart and
+      table updates with it.</li>
     <li><b>Cap-gains &amp; depreciation-recapture rates.</b> Applied symmetrically — they tax the home's gain and the sell side's
       investment gain on the same footing. The component rates are in §5; the mechanics are in §4.</li>
   </ul>

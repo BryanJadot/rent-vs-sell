@@ -28,8 +28,6 @@ from assumptions import (
     Sec121,
     PRIMARY_APPRECIATION,
     APPRECIATION,
-    APPRECIATION_NOTES,
-    APPRECIATION_TAGS,
     HORIZONS,
     WORKED_EXAMPLE_HORIZON,
     INVEST_RATES,
@@ -305,6 +303,76 @@ def _cashflow_svg(chart: dict) -> str:
     return "".join(parts)
 
 
+def _cashflow_table_html(m: Model, rent: float) -> str:
+    """Year-1 cash-in/out breakdown at one rent — the server seed for the live table
+    (#be-cashflow-table-live). Single rent column (the rent slider drives it live). Every
+    number comes from the model's calc_rent / oop_breakdown; render only arranges and signs.
+    Mirrored by static/model.js buildCashflowTable.
+    """
+    oop = m.oop_breakdown(rent)
+    rt = m.calc_rent(rent)
+    # (label, signed value). Outflows negative; the model owns the figures.
+    rows = [
+        ("Rent collected (net of vacancy)", oop.rent_in),
+        ("Mortgage payment (principal &amp; interest)", oop.mortgage_out),
+        ("Property tax", -rt.prop_tax),
+        ("Insurance", -m.p.insurance),
+        ("Repairs / maintenance", -m.p.repairs),
+        ("Management &amp; leasing", -(rt.mgmt + rt.leasing)),
+        ("Yearly depreciation tax break", oop.tax_back),
+    ]
+    body = ""
+    for label, v in rows:
+        if v == 0:
+            cell = '<td class="sub">—</td>'
+        else:
+            cls = "num-good" if v > 0 else "num-bad"
+            sign = "+" if v > 0 else "−"
+            cell = f'<td class="{cls}">{sign}{abs(v):,.0f}</td>'
+        body += f"<tr><td>{label}</td>{cell}</tr>"
+    net = oop.net
+    net_sign = "+" if net >= 0 else "−"
+    body += (
+        f'<tr class="total"><td>Net cash flow / yr</td>'
+        f'<td class="num-bad">{net_sign}{abs(net):,.0f}</td></tr>'
+        f'<tr class="total"><td>…per month</td>'
+        f'<td class="num-bad">{net_sign}{abs(net) / MONTHS_PER_YEAR:,.0f}</td></tr>'
+    )
+    return f"<thead><tr><th>Cash item (at ${rent / 1000:g}k/mo)</th><th>Year 1</th></tr></thead><tbody>{body}</tbody>"
+
+
+def _badyear_table_html(m: Model, rent: float) -> str:
+    """Bad-year cost table at one rent — server seed for the live table
+    (#be-badyear-table-live). Uses Model.risk_scenarios (one math source). Mirrored by
+    static/model.js buildBadYearTable.
+    """
+    r = m.risk_scenarios(rent)
+    base = r["baseline"]
+    scen = [
+        ("Normal year (baseline)", 0.0, base),
+        ("+ 3 months extra vacancy", r["extra_vacancy"], base + r["extra_vacancy"]),
+        ("+ Non-paying tenant + eviction", r["eviction"], base + r["eviction"]),
+        (
+            "+ Major repair (roof/foundation), net of tax",
+            r["major_repair"],
+            base + r["major_repair"],
+        ),
+    ]
+    body = ""
+    for label, hit, total in scen:
+        hit_s = "<td>—</td>" if hit == 0 else f'<td class="num-bad">−{abs(hit):,.0f}</td>'
+        body += f'<tr><td>{label}</td>{hit_s}<td class="num-bad">−{abs(total):,.0f}</td></tr>'
+    body += (
+        f'<tr class="total"><td>WORST CASE: all three in one year</td>'
+        f'<td class="num-bad">−{abs(r["worst_extra"]):,.0f}</td>'
+        f'<td class="num-bad">−{abs(r["worst_total"]):,.0f}</td></tr>'
+    )
+    return (
+        f"<thead><tr><th>Scenario (at ${rent / 1000:g}k/mo)</th><th>Added cost this event</th>"
+        f"<th>Whole-year cash out</th></tr></thead><tbody>{body}</tbody>"
+    )
+
+
 def build_context(m: Model) -> dict:
     p = m.p
     sell = m.calc_sell()
@@ -312,83 +380,9 @@ def build_context(m: Model) -> dict:
     hz_head = "".join(f"<th>{y}-yr</th>" for y in H)
     computed = m.compute()  # one call; index the slices below (compute() is the contract)
 
-    # Headline net-worth rows
-    headline = ""
-    for rent in p.realistic_rents:
-        vals = [m.hold_net_worth(rent, y, PRIMARY_APPRECIATION).net_worth for y in H]
-        headline += _nw_row(
-            f'<b>Hold, rent ${rent / 1000:g}k/mo</b> <span class="sub">(full rental)</span>',
-            vals,
-            cls="primary",
-            bold_last=True,
-        )
-    w3 = ""
-    for y in H:
-        if y <= 3:
-            v = m.hold_net_worth(
-                p.primary_rent, y, PRIMARY_APPRECIATION, sec121=Sec121.WITHIN_3YR
-            ).net_worth
-            w3 += f"<td>{v:,.0f}</td>"
-        else:
-            w3 += '<td class="sub">—</td>'
-    headline += (
-        f"<tr><td>Sell within 3 yrs "
-        f'<span class="sub">(only option that keeps the ${CG_EXCLUSION / 1000:g}k §121 break; '
-        f"the dashes mean you'd already have sold)</span></td>{w3}</tr>"
-    )
-    for rate in INVEST_RATES:
-        vals = [m.invest_net_worth(sell.net_after_tax, y, rate) for y in H]
-        headline += _nw_row(
-            f'<b>Sell now + invest @ {rate * 100:.0f}%</b> <span class="sub">(after-tax)</span>',
-            vals,
-            cls="sell",
-        )
-
-    # Appreciation sensitivity rows. Pills are NEUTRAL (one style for all) — they label
-    # which end of the SF history each rate is, not a good/bad valence; a red "bad" /
-    # green "good" pill would steer the reader toward a verdict (CLAUDE.md rule 2).
-    appr_rows = ""
-    for key, appr in APPRECIATION.items():
-        vals = [m.hold_net_worth(p.primary_rent, y, appr).net_worth for y in H]
-        cls = "primary" if abs(appr - PRIMARY_APPRECIATION) < 1e-9 else ""
-        lbl = (
-            f'{appr * 100:g}%/yr <span class="pill">{APPRECIATION_TAGS[key]}</span> '
-            f'<span class="sub">{APPRECIATION_NOTES[key]}</span>'
-        )
-        appr_rows += _nw_row(lbl, vals, cls=cls)
-
-    # Rent-growth sensitivity rows (the single biggest swing factor). Data from
-    # compute() so render doesn't re-pick the rates.
-    rgs = computed["rent_growth_sensitivity"]
-    rg_low_pct = rgs["rg_low"] * 100
-    rg_high_pct = rgs["rg_high"] * 100
-    rg_rows = ""
-    rg_rows += _nw_row(
-        f'Rent grows {rg_low_pct:g}%/yr <span class="sub">(recent SF ZORI — base)</span>',
-        [rgs["rows"][y]["low"] for y in H],
-        cls="primary",
-    )
-    rg_rows += _nw_row(
-        f'Rent grows {rg_high_pct:g}%/yr <span class="sub">(tracks home value)</span>',
-        [rgs["rows"][y]["high"] for y in H],
-    )
-    rg_rows += _nw_row(
-        '<b>Sell now + invest</b> <span class="sub">(at 7%, the higher opp. rate, after-tax)</span>',
-        [rgs["rows"][y]["best_sell"] for y in H],
-        cls="sell",
-    )
-
-    # Break-even appreciation row: the appreciation rate at which HOLD ties SELL at each
-    # horizon (both sides at the primary opp rate). Percentages, not dollars — one row.
-    # Data from compute() so render doesn't re-solve. The accompanying note compares it to
-    # the SF historical CAGR scenarios; render only formats the numbers it's handed.
-    be = computed["break_even"]
-    be_cells = "".join(f"<td><b>{be['rows'][y] * 100:.2f}%</b></td>" for y in H)
-    be_row = f'<tr class="primary"><td>Appreciation HOLD needs to tie SELL</td>{be_cells}</tr>'
-    be_opp_pct = be["opp_rate"] * 100
-    be_low_pct = be["scenarios"]["low"] * 100
-    be_mod_pct = be["scenarios"]["moderate"] * 100
-    be_high_pct = be["scenarios"]["high"] * 100
+    # Live net-worth chart seed (the static sensitivity tables it used to sit beside —
+    # headline, by-appreciation, rent-growth, market-return, break-even — are subsumed by
+    # the sliders + the live horizon table, so they're gone). Numbers come from compute().
     be_chart_svg = _break_even_svg(computed["break_even_chart"])
     be_chart_horizon = computed["break_even_chart"]["horizon"]
 
@@ -424,85 +418,20 @@ def build_context(m: Model) -> dict:
     # Worked example
     we = m.hold_net_worth(p.primary_rent, WORKED_EXAMPLE_HORIZON, PRIMARY_APPRECIATION)
 
-    # Out-of-pocket cash table. One row per OopBreakdown field (in display order).
-    def oop_row(field):
-        cells = ""
-        for r in p.realistic_rents:
-            v = getattr(m.oop_breakdown(r), field)
-            cls = "num-bad" if v < 0 else "num-good"
-            sign = "−" if v < 0 else "+"
-            cells += f'<td class="{cls}">{sign}{abs(v):,.0f}</td>'
-        return cells
+    # Server seeds for the two live §2 tables, at the default (primary) rent. The rent
+    # slider redraws them live via static/model.js; these show before JS / in print.
+    cashflow_table_seed = _cashflow_table_html(m, p.primary_rent)
+    badyear_table_seed = _badyear_table_html(m, p.primary_rent)
 
-    oop_head = "".join(f"<th>${r / 1000:g}k/mo</th>" for r in p.realistic_rents)
-    oop_rows = [oop_row(f) for f in ("rent_in", "mortgage_out", "opex_out", "tax_back")]
-
-    # Opex broken into its parts (property tax / insurance / repairs / management),
-    # each a negative cash row across the rent columns. Components come from calc_rent
-    # (Rent.prop_tax, .other_fixed = insurance+repairs, .mgmt, .leasing) — Rule 1, render
-    # does no math, just splits the line the model already computed. mgmt+leasing are
-    # combined into "Management" since both are management-of-tenant costs.
-    def opex_part_row(part_fn):
-        cells = ""
-        for r in p.realistic_rents:
-            v = part_fn(m.calc_rent(r))
-            cells += f'<td class="num-bad">−{abs(v):,.0f}</td>'
-        return cells
-
-    opex_part_rows = {
-        "prop_tax": opex_part_row(lambda rt: rt.prop_tax),
-        "insurance": opex_part_row(lambda rt: p.insurance),
-        "repairs": opex_part_row(lambda rt: p.repairs),
-        "mgmt": opex_part_row(lambda rt: rt.mgmt + rt.leasing),
-    }
-    oop_net = "".join(
-        f'<td class="num-bad">−{abs(m.oop_breakdown(r).net):,.0f}</td>' for r in p.realistic_rents
-    )
-    oop_mo = "".join(
-        f'<td class="num-bad">−{abs(m.oop_breakdown(r).net / MONTHS_PER_YEAR):,.0f}</td>'
-        for r in p.realistic_rents
-    )
-
-    inc_lo = sell.net_after_tax * INVEST_RATES[0]
-    inc_hi = sell.net_after_tax * INVEST_RATES[1]
-
-    # "Other factors" — rent-level range: the longest-horizon hold net worth across a
-    # plausible rent band (low = $500 below primary, high = $500 above the upper realistic
-    # rent), so §3 can state the magnitude factually. Model owns the math.
-    longest_h = max(H)
-    rent_lo = p.primary_rent - 500
-    rent_hi = max(p.realistic_rents) + 500
-    rent_lo_nw = m.hold_net_worth(rent_lo, longest_h, PRIMARY_APPRECIATION).net_worth
-    rent_hi_nw = m.hold_net_worth(rent_hi, longest_h, PRIMARY_APPRECIATION).net_worth
-
-    # Risk rows — values come from compute()["risk"] (model owns the math, incl. the
-    # net-of-tax major-repair cost; render only arranges).
-    risk = computed["risk"]
-    base_oop = risk["baseline"]
-    scenarios = [
-        ("Normal year (baseline)", 0, base_oop),
-        (
-            f"+ {BAD_VACANCY_MONTHS} months extra vacancy",
-            risk["extra_vacancy"],
-            base_oop + risk["extra_vacancy"],
-        ),
-        ("+ Non-paying tenant + eviction", risk["eviction"], base_oop + risk["eviction"]),
-        (
-            "+ Major repair (roof/foundation), net of tax",
-            risk["major_repair"],
-            base_oop + risk["major_repair"],
-        ),
-    ]
-    worst_extra = -risk["worst_extra"]
-    worst_total = risk["worst_total"]
-    risk_rows = ""
-    for label, hit, total in scenarios:
-        hit_s = "<td>—</td>" if hit == 0 else f'<td class="num-bad">−{abs(hit):,.0f}</td>'
-        risk_rows += f'<tr><td>{label}</td>{hit_s}<td class="num-bad">−{abs(total):,.0f}</td></tr>'
-    risk_rows += (
-        f'<tr class="total"><td>WORST CASE: all three in one year</td>'
-        f'<td class="num-bad">−{worst_extra:,.0f}</td>'
-        f'<td class="num-bad">−{abs(worst_total):,.0f}</td></tr>'
+    # §121 benefit at a 3-yr hold: how much keeping the exclusion is worth vs. a full rental
+    # at the same horizon (a neutral figure for the one-line note in §1). Model owns the math.
+    sec121_benefit_3yr = (
+        m.hold_net_worth(
+            p.primary_rent, SELL_SOON_MAX_YEARS, PRIMARY_APPRECIATION, sec121=Sec121.WITHIN_3YR
+        ).net_worth
+        - m.hold_net_worth(
+            p.primary_rent, SELL_SOON_MAX_YEARS, PRIMARY_APPRECIATION, sec121=Sec121.FULL_RENTAL
+        ).net_worth
     )
 
     # Assumptions table rows. Per-property values from p; shared from assumptions.
@@ -589,22 +518,6 @@ def build_context(m: Model) -> dict:
     # figures and explains terms but draws no conclusion. See CLAUDE.md.
     v = computed["cash_facts"]
 
-    # Opportunity-rate sensitivity rows (hold vs sell at each rate, same rate both sides).
-    ors = computed["opp_rate_sensitivity"]
-    rate_rows = ""
-    for r in ors["rates"]:
-        key = f"{int(r * 100)}%"
-        rate_rows += _nw_row(
-            f'Hold <span class="sub">(both sides earn {key} market return)</span>',
-            [ors["rows"][y][key]["hold"] for y in H],
-            cls="primary",
-        )
-        rate_rows += _nw_row(
-            f'Sell + invest @ {key} <span class="sub">(after-tax)</span>',
-            [ors["rows"][y][key]["sell"] for y in H],
-            cls="sell",
-        )
-
     # ── Interactive break-even explorer payload ───────────────────────────────
     # PARAMS = every constant/per-property number the JS engine reads (Rule 3: single
     # source — js_params() owns them, the JS retypes nothing). CHART = the SAME geometry
@@ -635,8 +548,14 @@ def build_context(m: Model) -> dict:
         model_js = f.read()
     # Slider defaults = the model's base case; ranges decided tight around realistic SF.
     slider_appr_default = PRIMARY_APPRECIATION * 100
-    slider_rent_default = RENT_GROWTH * 100
+    slider_rent_default = RENT_GROWTH * 100  # rent-GROWTH slider (%/yr)
     slider_market_default = PRIMARY_INVEST * 100
+    # Rent-LEVEL slider ($/mo): default is the property's primary rent; range decided
+    # $4,000–$6,500 step $250 (spans the comps with room to probe past them).
+    slider_rentlevel_default = p.primary_rent
+    slider_rentlevel_min = 4000
+    slider_rentlevel_max = 6500
+    slider_rentlevel_step = 250
 
     # Gain/loss flag for sale-side labels (factual, drives wording not judgment).
     sells_at_loss = sell.capital_gain < 0
@@ -676,21 +595,13 @@ def build_context(m: Model) -> dict:
         "deprec_net": f"{we.deprec_release - we.recapture:+,.0f}",
         "sells_at_loss": sells_at_loss,
         "hz_head": M(hz_head),
-        "headline_rows": M(headline),
-        "appr_rows": M(appr_rows),
-        "rg_rows": M(rg_rows),
-        "rg_low_pct": rg_low_pct,
-        "rg_high_pct": rg_high_pct,
-        "rate_rows": M(rate_rows),
-        "be_row": M(be_row),
-        "be_opp_pct": be_opp_pct,
-        "be_low_pct": be_low_pct,
-        "be_mod_pct": be_mod_pct,
-        "be_high_pct": be_high_pct,
         "be_chart_svg": M(be_chart_svg),
         "be_chart_horizon": be_chart_horizon,
         "be_table_seed": M(be_table_seed),
         "cashflow_svg": M(cashflow_svg),
+        "cashflow_table_seed": M(cashflow_table_seed),
+        "badyear_table_seed": M(badyear_table_seed),
+        "sec121_benefit_3yr": sec121_benefit_3yr,
         # Interactive explorer: PARAMS/CHART are pre-serialized JSON (safe to mark Markup
         # for inline <script>); model_js is the inlined engine. Slider defaults/ranges.
         "params_json": M(params_json),
@@ -699,23 +610,11 @@ def build_context(m: Model) -> dict:
         "slider_appr_default": slider_appr_default,
         "slider_rent_default": slider_rent_default,
         "slider_market_default": slider_market_default,
-        "oop_head": M(oop_head),
-        "oop_rows": [M(x) for x in oop_rows],
-        "opex_part_rows": {k: M(v) for k, v in opex_part_rows.items()},
-        "oop_net": M(oop_net),
-        "oop_mo": M(oop_mo),
-        "risk_rows": M(risk_rows),
+        "slider_rentlevel_default": slider_rentlevel_default,
+        "slider_rentlevel_min": slider_rentlevel_min,
+        "slider_rentlevel_max": slider_rentlevel_max,
+        "slider_rentlevel_step": slider_rentlevel_step,
         "assumption_rows": M(assumption_rows),
-        "inc_lo": inc_lo,
-        "inc_hi": inc_hi,
-        "invest_lo": INVEST_RATES[0],
-        "invest_hi": INVEST_RATES[1],
-        "rent_lo": rent_lo,
-        "rent_hi": rent_hi,
-        "rent_lo_nw": rent_lo_nw,
-        "rent_hi_nw": rent_hi_nw,
-        "base_oop": base_oop,
-        "worst_total": worst_total,
         "reserve_cost_yr": v["reserve_cost_yr"],
     }
 

@@ -31,6 +31,7 @@ APPRS = [0.0, 0.025, 0.0485, 0.06, 0.07]
 RENT_GROWTHS = [0.01, 0.03, 0.0485, 0.06]
 MARKETS = [0.04, 0.05, 0.07, 0.08, 0.10]  # spans the slider range (market return 4–10%)
 HORIZONS = [3, 5, 10, 15, 20, 25, 30]  # spans the 0–30yr time axis, incl. past loan payoff
+RENT_LEVELS = [4000, 5000, 6500]  # spans the rent-level slider range ($4k–$6.5k)
 
 # A node driver that loads the engine, reads sample points from stdin, and prints the
 # JS HOLD/SELL net worth for each — kept inline so the test is self-contained.
@@ -42,22 +43,43 @@ const input = JSON.parse(fs.readFileSync(0, 'utf8'));
 const P = input.params;
 const out = input.points.map((pt) => {
   const hold = engine.holdNetWorth(
-    P, P.primary_rent, pt.years, pt.appr, pt.market, 'full_rental', pt.rent_growth
+    P, pt.rent_level, pt.years, pt.appr, pt.market, 'full_rental', pt.rent_growth
   ).netWorth;
   const sell = engine.investNetWorth(P, engine.calcSell(P).netAfterTax, pt.years, pt.market);
-  return { hold, sell };
+  // Bad-year risk + year-1 out-of-pocket at this rent (the live §2 tables read these).
+  const oop = engine.oopBreakdown(P, pt.rent_level).net;
+  const risk = engine.riskScenarios(P, pt.rent_level);
+  return { hold, sell, oop, worst_total: risk.worst_total };
 });
 process.stdout.write(JSON.stringify(out));
 """
 
 
-def _points():
+def _points(primary_rent: float):
+    """The hold/sell grid runs at the primary rent (keeps the cartesian product bounded);
+    a separate sweep varies the rent level so the rent-driven hold/oop/risk paths are
+    covered without multiplying the whole grid by every rent."""
     pts = []
     for appr in APPRS:
         for rg in RENT_GROWTHS:
             for mk in MARKETS:
                 for yr in HORIZONS:
-                    pts.append({"appr": appr, "rent_growth": rg, "market": mk, "years": yr})
+                    pts.append(
+                        {
+                            "appr": appr,
+                            "rent_growth": rg,
+                            "market": mk,
+                            "years": yr,
+                            "rent_level": primary_rent,
+                        }
+                    )
+    # Rent-level sweep (at the base appr/market/growth, a few horizons) — exercises the
+    # rent-driven hold path and the oop/risk mirrors at every slider rent.
+    for rl in RENT_LEVELS:
+        for yr in (1, 10, 30):
+            pts.append(
+                {"appr": 0.0485, "rent_growth": 0.03, "market": 0.07, "years": yr, "rent_level": rl}
+            )
     return pts
 
 
@@ -85,7 +107,7 @@ def test_js_matches_python_within_one_dollar(prop_path):
     """
     m = Model(load_property(prop_path))
     params = m.js_params()
-    points = _points()
+    points = _points(m.p.primary_rent)
     js = _run_node(params, points)
 
     np_ = m.calc_sell().net_after_tax  # SELL invests proceeds net of closing cap-gains tax
@@ -95,17 +117,23 @@ def test_js_matches_python_within_one_dollar(prop_path):
         # isn't a global mutation (mirrors compute()'s rent_growth_sensitivity pattern).
         m_rg = Model(m.p, rent_growth=pt["rent_growth"])
         py_hold = m_rg.hold_net_worth(
-            m.p.primary_rent,
+            pt["rent_level"],
             pt["years"],
             pt["appr"],
             opp_rate=pt["market"],
             sec121=Sec121.FULL_RENTAL,
         ).net_worth
         py_sell = m.invest_net_worth(np_, pt["years"], pt["market"])
+        py_oop = m.oop_breakdown(pt["rent_level"]).net
+        py_worst = m.risk_scenarios(pt["rent_level"])["worst_total"]
 
         if abs(py_hold - jr["hold"]) > 1.0:
             mismatches.append(f"HOLD {pt}: py={py_hold:.2f} js={jr['hold']:.2f}")
         if abs(py_sell - jr["sell"]) > 1.0:
             mismatches.append(f"SELL {pt}: py={py_sell:.2f} js={jr['sell']:.2f}")
+        if abs(py_oop - jr["oop"]) > 1.0:
+            mismatches.append(f"OOP {pt}: py={py_oop:.2f} js={jr['oop']:.2f}")
+        if abs(py_worst - jr["worst_total"]) > 1.0:
+            mismatches.append(f"WORST {pt}: py={py_worst:.2f} js={jr['worst_total']:.2f}")
 
     assert not mismatches, "JS/Python drift >$1:\n" + "\n".join(mismatches[:20])

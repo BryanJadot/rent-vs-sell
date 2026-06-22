@@ -426,6 +426,28 @@ class Model:
         net = rent_in + mortgage_out + opex_out + tax_back
         return OopBreakdown(rent_in, mortgage_out, opex_out, tax_back, net)
 
+    def risk_scenarios(self, monthly_rent: float) -> dict:
+        """Bad-year cash scenarios at `monthly_rent` (year-1). One source for both the
+        report's bad-year table and its JS live mirror. Each event is the INCREMENTAL cost
+        added to the normal-year out-of-pocket baseline; rows stand alone (they don't add).
+        The worst case stacks all three in one year — independent and individually unlikely
+        (probabilities in assumptions.py), so a deliberately pessimistic tail. The major
+        repair is carried at its NET (post-tax-recovery) cost (it's a capital improvement,
+        added to basis), consistent with expected_risk_drag. All figures signed: outflows
+        negative."""
+        base = self.oop_breakdown(monthly_rent).net
+        worst_extra = BAD_VACANCY_MONTHS * monthly_rent + EVICTION_COST + self.net_major_repair
+        return {
+            "baseline": base,
+            "extra_vacancy": -BAD_VACANCY_MONTHS * monthly_rent,
+            "eviction": -EVICTION_COST,
+            "major_repair": -self.net_major_repair,
+            "major_repair_gross": -MAJOR_REPAIR,
+            "worst_extra": -worst_extra,
+            "worst_total": base - worst_extra,
+            "worst_case_is_compound": True,
+        }
+
     # ── Multi-year hold ────────────────────────────────────────────────────────
     def _year_cash_flow(self, monthly_rent: float, year_index: int) -> float:
         """One year's ECONOMIC cash flow for the hold path (the money the property
@@ -919,23 +941,9 @@ class Model:
         yr1_oop = -self.oop_breakdown(p.primary_rent).net
         yr10_oop = -self._year_cash_flow(p.primary_rent, weh - 1)
 
-        # Worst-case year = baseline OOP plus all three bad events at once. NOTE these are
-        # independent and individually unlikely (probabilities in assumptions.py), so all
-        # three landing in one year is a deliberately pessimistic tail, not a typical bad
-        # year — the `worst_case_is_compound` flag lets render say so. The major repair is
-        # carried at its NET (post-tax-recovery) cost, consistent with expected_risk_drag.
-        base = self.oop_breakdown(p.primary_rent).net
-        worst_extra = BAD_VACANCY_MONTHS * p.primary_rent + EVICTION_COST + self.net_major_repair
-        risk = {
-            "baseline": base,
-            "extra_vacancy": -BAD_VACANCY_MONTHS * p.primary_rent,
-            "eviction": -EVICTION_COST,
-            "major_repair": -self.net_major_repair,
-            "major_repair_gross": -MAJOR_REPAIR,
-            "worst_extra": -worst_extra,
-            "worst_total": base - worst_extra,
-            "worst_case_is_compound": True,
-        }
+        # Bad-year scenarios at the primary rent (the method is the single source, also
+        # mirrored in static/model.js for the live table). See Model.risk_scenarios.
+        risk = self.risk_scenarios(p.primary_rent)
 
         return {
             "generated": p.as_of_date,

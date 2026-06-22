@@ -213,6 +213,31 @@ function calcSell(P) {
   return { netProceeds: net, tax, netAfterTax: net - tax };
 }
 
+function oopBreakdown(P, monthlyRent) {
+  // Mirror of Model.oop_breakdown — year-1 real cash flows (outflows negative).
+  const r = calcRent(P, monthlyRent, 0);
+  const rentIn = r.egi;
+  const mortgageOut = -r.annualPi;
+  const opexOut = -(r.fixed + r.mgmt + r.leasing);
+  const taxBack = annualDeprecShield(P);
+  return { rentIn, mortgageOut, opexOut, taxBack, net: rentIn + mortgageOut + opexOut + taxBack };
+}
+
+function riskScenarios(P, monthlyRent) {
+  // Mirror of Model.risk_scenarios — bad-year incremental costs at this rent (signed,
+  // outflows negative). Each event is added to the baseline independently (rows stand alone).
+  const base = oopBreakdown(P, monthlyRent).net;
+  const worstExtra = P.bad_vacancy_months * monthlyRent + P.eviction_cost + netMajorRepair(P);
+  return {
+    baseline: base,
+    extra_vacancy: -P.bad_vacancy_months * monthlyRent,
+    eviction: -P.eviction_cost,
+    major_repair: -netMajorRepair(P),
+    worst_extra: -worstExtra,
+    worst_total: base - worstExtra,
+  };
+}
+
 function holdNetWorth(P, monthlyRent, years, appr, oppRate, sec121, rentGrowth) {
   // Mirror of Model.hold_net_worth. sec121: "full_rental" | "within_3yr".
   oppRate = oppRate === undefined ? P.primary_invest : oppRate;
@@ -284,6 +309,8 @@ if (typeof module !== "undefined" && module.exports) {
     investNetWorth,
     bestSell,
     breakEvenAppreciation,
+    oopBreakdown,
+    riskScenarios,
   };
 }
 
@@ -305,10 +332,10 @@ if (typeof document !== "undefined") {
   // Hold & Sell net worth over the holding period at the current slider values, for every
   // year 0..horizon. BOTH curves move with all three sliders (so dragging any of them
   // shifts the crossing). Mirror of model.compute()'s break_even_chart construction.
-  function timeSeries(appr, rentGrowth, marketRate) {
+  function timeSeries(appr, rentGrowth, marketRate, rentLevel) {
     const grid = C.yearGrid;
     const hold = grid.map(
-      (y) => holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth
+      (y) => holdNetWorth(P, rentLevel, y, appr, marketRate, "full_rental", rentGrowth).netWorth
     );
     // SELL at the chosen market return — best of the invest scenarios is not used here
     // because the slider IS the market return; a single rate keeps the line interpretable.
@@ -332,8 +359,8 @@ if (typeof document !== "undefined") {
 
   // Mirror of render._break_even_svg coordinate mapping (time axis). Pure string-building;
   // the model numbers come from the engine above.
-  function buildSvg(appr, rentGrowth, marketRate) {
-    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate);
+  function buildSvg(appr, rentGrowth, marketRate, rentLevel) {
+    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate, rentLevel);
     const payoff = C.payoffYear;
 
     const W = C.W, Hh = C.Hh;
@@ -414,9 +441,9 @@ if (typeof document !== "undefined") {
   // (proceeds reinvested, nothing withdrawn). Mirror of render._cashflow_svg. NOTE: this
   // depends only on rent growth — appreciation and market return don't change the yearly
   // cash in/out of the property, so only the rent slider moves this chart.
-  function buildCashflowSvg(rentGrowth) {
+  function buildCashflowSvg(rentGrowth, rentLevel) {
     const grid = C.cashflowYearGrid;
-    const hold = grid.map((y) => yearCashFlow(P, P.primary_rent, y, rentGrowth));
+    const hold = grid.map((y) => yearCashFlow(P, rentLevel, y, rentGrowth));
     const payoff = C.payoffYear;
 
     const W = C.W, Hh = C.Hh;
@@ -476,8 +503,8 @@ if (typeof document !== "undefined") {
 
   // Neutral readout: figures only — gap at the longest horizon + crossover year.
   // No "you should"/"better"/"win" (CLAUDE.md rule 2).
-  function buildReadout(appr, rentGrowth, marketRate) {
-    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate);
+  function buildReadout(appr, rentGrowth, marketRate, rentLevel) {
+    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate, rentLevel);
     const hz = grid[grid.length - 1];
     const holdHz = hold[hold.length - 1];
     const sellHz = sell[sell.length - 1];
@@ -497,12 +524,12 @@ if (typeof document !== "undefined") {
   // Live table: Hold and Sell net worth at each reported horizon, at the current slider
   // values, plus their gap. Figures only (Rule 2) — the gap is a signed magnitude with no
   // good/bad coloring, since "which side is larger" is not a verdict this report makes.
-  function buildHorizonTable(appr, rentGrowth, marketRate) {
+  function buildHorizonTable(appr, rentGrowth, marketRate, rentLevel) {
     const horizons = P.horizons;
     const head = horizons.map((y) => `<th>${y}-yr</th>`).join("");
     const holdCells = horizons
       .map((y) => {
-        const v = holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
+        const v = holdNetWorth(P, rentLevel, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
         return `<td>${fmtDollars(v)}</td>`;
       })
       .join("");
@@ -511,7 +538,7 @@ if (typeof document !== "undefined") {
       .join("");
     const gapCells = horizons
       .map((y) => {
-        const h = holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
+        const h = holdNetWorth(P, rentLevel, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
         const s = investNetWorth(P, calcSell(P).netAfterTax, y, marketRate);
         const d = h - s;
         // signed magnitude, neutral: "+" = Hold larger, "−" = Sell larger (a label, not a judgment)
@@ -529,25 +556,95 @@ if (typeof document !== "undefined") {
     );
   }
 
+  const fmtSigned = (v) =>
+    (v < 0 ? "−" : "+") + "$" + Math.abs(Math.round(v)).toLocaleString("en-US");
+
+  // Year-1 cash breakdown at one rent (mirror of render._cashflow_table_html).
+  function buildCashflowTable(rentLevel) {
+    const oop = oopBreakdown(P, rentLevel);
+    const rt = calcRent(P, rentLevel, 0);
+    const rows = [
+      ["Rent collected (net of vacancy)", oop.rentIn],
+      ["Mortgage payment (principal &amp; interest)", oop.mortgageOut],
+      ["Property tax", -rt.propTax],
+      ["Insurance", -P.insurance],
+      ["Repairs / maintenance", -P.repairs],
+      ["Management &amp; leasing", -(rt.mgmt + rt.leasing)],
+      ["Yearly depreciation tax break", oop.taxBack],
+    ];
+    let body = "";
+    for (const [label, v] of rows) {
+      const cell =
+        v === 0
+          ? '<td class="sub">—</td>'
+          : `<td class="${v > 0 ? "num-good" : "num-bad"}">${fmtSigned(v)}</td>`;
+      body += `<tr><td>${label}</td>${cell}</tr>`;
+    }
+    const net = oop.net;
+    body +=
+      `<tr class="total"><td>Net cash flow / yr</td><td class="num-bad">${fmtSigned(net)}</td></tr>` +
+      `<tr class="total"><td>…per month</td><td class="num-bad">${fmtSigned(net / P.months_per_year)}</td></tr>`;
+    const rk = (rentLevel / 1000)
+      .toLocaleString("en-US", { maximumFractionDigits: 2 })
+      .replace(/\.?0+$/, "");
+    return `<thead><tr><th>Cash item (at $${rk}k/mo)</th><th>Year 1</th></tr></thead><tbody>${body}</tbody>`;
+  }
+
+  // Bad-year cost table at one rent (mirror of render._badyear_table_html).
+  function buildBadYearTable(rentLevel) {
+    const r = riskScenarios(P, rentLevel);
+    const base = r.baseline;
+    const scen = [
+      ["Normal year (baseline)", 0, base],
+      ["+ 3 months extra vacancy", r.extra_vacancy, base + r.extra_vacancy],
+      ["+ Non-paying tenant + eviction", r.eviction, base + r.eviction],
+      ["+ Major repair (roof/foundation), net of tax", r.major_repair, base + r.major_repair],
+    ];
+    const neg = (v) => `−$${Math.abs(Math.round(v)).toLocaleString("en-US")}`;
+    let body = "";
+    for (const [label, hit, total] of scen) {
+      const hitS = hit === 0 ? "<td>—</td>" : `<td class="num-bad">${neg(hit)}</td>`;
+      body += `<tr><td>${label}</td>${hitS}<td class="num-bad">${neg(total)}</td></tr>`;
+    }
+    body +=
+      `<tr class="total"><td>WORST CASE: all three in one year</td>` +
+      `<td class="num-bad">${neg(r.worst_extra)}</td><td class="num-bad">${neg(r.worst_total)}</td></tr>`;
+    const rk = (rentLevel / 1000)
+      .toLocaleString("en-US", { maximumFractionDigits: 2 })
+      .replace(/\.?0+$/, "");
+    return (
+      `<thead><tr><th>Scenario (at $${rk}k/mo)</th><th>Added cost this event</th>` +
+      `<th>Whole-year cash out</th></tr></thead><tbody>${body}</tbody>`
+    );
+  }
+
   function redraw() {
     const appr = +document.getElementById("slider-appr").value / 100;
     const rentGrowth = +document.getElementById("slider-rent").value / 100;
     const marketRate = +document.getElementById("slider-market").value / 100;
+    const rentLevel = +document.getElementById("slider-rentlevel").value;
 
     document.getElementById("val-appr").textContent = (appr * 100).toFixed(1).replace(/\.0$/, "") + "%";
     document.getElementById("val-rent").textContent = (rentGrowth * 100).toFixed(1).replace(/\.0$/, "") + "%";
     document.getElementById("val-market").textContent = (marketRate * 100).toFixed(1).replace(/\.0$/, "") + "%";
+    document.getElementById("val-rentlevel").textContent = "$" + rentLevel.toLocaleString("en-US") + "/mo";
 
-    const tbl = document.getElementById("be-table-live");
-    if (tbl) tbl.innerHTML = buildHorizonTable(appr, rentGrowth, marketRate);
-    document.getElementById("be-chart-live").innerHTML = buildSvg(appr, rentGrowth, marketRate);
-    document.getElementById("be-readout").innerHTML = buildReadout(appr, rentGrowth, marketRate);
-    const cf = document.getElementById("cashflow-chart-live");
-    if (cf) cf.innerHTML = buildCashflowSvg(rentGrowth);
+    // Every live element is keyed by id; some live in §1, some in §2 — the global slider
+    // bar drives them all wherever they sit. Each `if` guards against an absent element.
+    const setHtml = (id, html) => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = html;
+    };
+    setHtml("be-table-live", buildHorizonTable(appr, rentGrowth, marketRate, rentLevel));
+    setHtml("be-chart-live", buildSvg(appr, rentGrowth, marketRate, rentLevel));
+    setHtml("be-readout", buildReadout(appr, rentGrowth, marketRate, rentLevel));
+    setHtml("cashflow-chart-live", buildCashflowSvg(rentGrowth, rentLevel));
+    setHtml("be-cashflow-table-live", buildCashflowTable(rentLevel));
+    setHtml("be-badyear-table-live", buildBadYearTable(rentLevel));
   }
 
   function init() {
-    ["slider-appr", "slider-rent", "slider-market"].forEach((id) => {
+    ["slider-appr", "slider-rent", "slider-market", "slider-rentlevel"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", redraw);
     });
