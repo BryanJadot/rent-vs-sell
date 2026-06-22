@@ -1,40 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Rent vs. Sell — Data — {{ address }}{% endblock %}
 {% block body %}
-  <h1>Rent vs. Sell — Data &amp; Numbers</h1>
-  <p class="sub">{{ address }} · auto-generated {{ generated }}</p>
-
-  <div class="card">
-    <b>How to read this</b>
-    <ul style="margin:6px 0 8px">
-      <li><b>Sell now:</b> sell today, pay the costs and taxes, invest what's left in the market.</li>
-      <li><b>Hold:</b> keep it and rent it out, then sell later — paying the selling costs and taxes at that future sale too.</li>
-      <li>Each figure is the <b>total wealth</b> a path leaves you with at a given future year ({{ shortest_horizon }}–{{ longest_horizon }} yrs out),
-        after all costs and taxes on <i>both</i> sides — so the two are comparable.</li>
-      <li>Figures are <b>future dollars</b>, not inflation-adjusted: at {{ '%g'|format(inflation_pct) }}% inflation, $1 in {{ longest_horizon }} yrs
-        is worth ~{{ '%.0f'|format(today_value_pct) }}&cent; today. Both paths use the same future dollars, so they stay comparable.</li>
-    </ul>
-    <p class="sub" style="margin:0">This page is <b>data only</b> — figures and how they're built. It draws no conclusion about which choice to make.</p>
-  </div>
-
-  <div class="card"><div class="grid">
-    <div><div class="sub">Current value (Zestimate)</div><b>${{ '{:,.0f}'.format(home_value) }}</b></div>
-    <div><div class="sub">Cost basis <span class="sub">(what you paid — baseline for the taxable gain)</span></div><b>${{ '{:,.0f}'.format(cost_basis) }}</b>
-      {% if sells_at_loss %}<span class="pill">value below basis</span>{% else %}<span class="pill">value above basis</span>{% endif %}</div>
-    <div><div class="sub">Mortgage balance</div><b>${{ '{:,.0f}'.format(mortgage_bal) }}</b></div>
-    <div><div class="sub">Mortgage rate (derived)</div><b>{{ '%.3f'|format(apr*100) }}%</b></div>
-  </div></div>
-
-  <div class="card">
-    <b>A few money words, in plain English</b>
-    <ul style="margin:6px 0 0">
-      <li><b>Market return</b> — what cash would earn if invested in the stock market instead ({{ '%g'|format(primary_invest*100) }}%/yr here). Money tied up elsewhere "costs" you this forgone return.</li>
-      <li><b>§121 exclusion</b> — a tax break that shields the first ${{ '{:g}'.format(cg_exclusion/1000) }}k of gain on a home you've lived in (2 of the last 5 yrs); a pure rental doesn't get it.</li>
-      <li><b>Depreciation</b> — a yearly paper deduction landlords take for wear-and-tear. At high income it can't be used yearly (it's <b>suspended</b>) and is applied later when you sell.</li>
-      <li><b>Depreciation recapture</b> — at sale, the IRS taxes back those depreciation deductions ({{ '%.1f'|format(deprec_recapture_rate*100) }}% here).</li>
-      <li><b>Pre-tax / after-tax</b> — both paths grow money pre-tax and pay the tax once at the end, so the comparison is fair.</li>
-    </ul>
-  </div>
+  <h1>Rent vs. Sell — {{ address }}</h1>
+  <p class="sub">Two choices: <b>Sell now</b> (sell, pay the taxes, invest what's left) or <b>Hold</b> (keep renting it out, sell
+  later). The charts below show the total wealth each one leaves you with — drag the sliders to put in your own assumptions and
+  watch them update. <span class="sub">Data only; it draws no conclusion about which to pick. Auto-generated {{ generated }}.</span></p>
 
   <!-- ===== GLOBAL STICKY SLIDER BAR ===== -->
   <!-- One control set, pinned, driving every live chart/table on the page (JS binds by id,
@@ -131,13 +101,24 @@
   for this is ${{ '{:,.0f}'.format(cash_reserve) }}.</p>
 
   <!-- ===== 3. SHOW YOUR WORK ===== -->
-  <h2>3. Show your work — how each number is built</h2>
-  <p class="sub">The full derivation behind the figures above, for anyone who wants to trace or check them. Cap-gains and
-  depreciation-recapture are applied <b>symmetrically</b> — they tax the home's gain and the sell side's investment gain on the
-  same footing (component rates in §4).</p>
+  <h2>3. Show your work — how a number is built</h2>
+  <p class="sub">One fully worked example, so you can see the <b>pieces</b> behind any figure above and how they combine. These use
+  <b>fixed values</b> ({{ worked_horizon }} years, ${{ '{:g}'.format(primary_rent/1000) }}k/mo rent, {{ '%g'|format(primary_appreciation*100) }}% appreciation,
+  {{ '%g'|format(primary_invest*100) }}% market) — they do <b>not</b> follow the sliders; they show the <i>method</i> the live charts use at every setting.
+  Cap-gains and depreciation-recapture are applied <b>symmetrically</b> — they tax the home's gain and the sell side's investment
+  gain on the same footing (component rates in §4).</p>
 
-  <details>
-    <summary>How a "Hold" number is built ({{ worked_horizon }}-yr, ${{ '{:g}'.format(primary_rent/1000) }}k rent, full rental) → ${{ '{:,.0f}'.format(we.net_worth) }}</summary>
+  <h3>A few money words, in plain English</h3>
+  <ul style="margin:6px 0 0">
+    <li><b>Market return</b> — what cash would earn if invested in the stock market instead ({{ '%g'|format(primary_invest*100) }}%/yr here). Money tied up elsewhere "costs" you this forgone return.</li>
+    <li><b>§121 exclusion</b> — a tax break that shields the first ${{ '{:g}'.format(cg_exclusion/1000) }}k of gain on a home you've lived in (2 of the last 5 yrs); a pure rental doesn't get it.</li>
+    <li><b>Depreciation</b> — a yearly paper deduction landlords take for wear-and-tear. At high income it can't be used yearly (it's <b>suspended</b>) and is applied later when you sell.</li>
+    <li><b>Depreciation recapture</b> — at sale, the IRS taxes back those depreciation deductions ({{ '%.1f'|format(deprec_recapture_rate*100) }}% here).</li>
+    <li><b>Future dollars</b> — figures aren't inflation-adjusted: at {{ '%g'|format(inflation_pct) }}% inflation, $1 in {{ longest_horizon }} yrs is worth ~{{ '%.0f'|format(today_value_pct) }}&cent; today. Both paths use the same future dollars, so they stay comparable.</li>
+    <li><b>Pre-tax / after-tax</b> — both paths grow money pre-tax and pay the tax once at the end, so the comparison is fair.</li>
+  </ul>
+
+  <h3>What goes into a "Hold" number <span class="sub">(fixed example: {{ worked_horizon }}-yr, ${{ '{:g}'.format(primary_rent/1000) }}k rent, full rental)</span> → ${{ '{:,.0f}'.format(we.net_worth) }}</h3>
     <table style="margin-top:8px">
       <thead><tr><th>Component</th><th>Amount</th><th>What it is</th></tr></thead>
       <tbody>
@@ -163,10 +144,8 @@
       They don't fully cancel: recapture accrues on every year of depreciation, while the released loss pool is drawn down once the
       rental turns tax-positive in later years. None of this affects monthly cash flow; it lands at sale. <i>Confirm with a CPA.</i>
     </div>
-  </details>
 
-  <details>
-    <summary>How the "Sell today" number is built → ${{ '{:,.0f}'.format(sell.net_proceeds) }} net proceeds</summary>
+  <h3>What goes into the "Sell today" number <span class="sub">(same for every slider setting)</span> → ${{ '{:,.0f}'.format(sell.net_after_tax) }} to invest (after tax)</h3>
     <table style="margin-top:8px">
       <tbody>
         <tr><td>Sale price (Zestimate)</td><td>${{ '{:,.0f}'.format(sell.price) }}</td><td class="sub"></td></tr>
@@ -185,7 +164,6 @@
         <tr class="total"><td>= Amount invested (after tax)</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_after_tax) }}</td><td class="sub">this is what compounds on the sell side</td></tr>
       </tbody>
     </table>
-  </details>
 
   <!-- ===== 4. ASSUMPTIONS ===== -->
   <h2>4. Every assumption, and where it came from</h2>
