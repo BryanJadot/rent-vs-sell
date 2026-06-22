@@ -327,13 +327,19 @@ class Model:
         """Remaining balance via the closed-form amortization identity (no loop):
             B_k = B_0·(1+r)^k − pmt·((1+r)^k − 1)/r
         Independent of the iterative schedule above — `test_amortization` cross-checks
-        the two agree, which guards against an off-by-one or sign error in the loop."""
+        the two agree, which guards against an off-by-one or sign error in the loop.
+
+        Floored at 0, matching the iterative schedule's `bal<=0` payoff guard: a balance
+        can't go negative (the loan is simply gone). Without the floor a payment that
+        slightly over-amortizes — or any inconsistent payment-vs-balance input — would yield
+        a spurious negative balance that the looped version (which stops at payoff) never
+        produces, breaking their agreement."""
         r = self.monthly_rate
         k = min(years * MONTHS_PER_YEAR, self.p.payments_left)
         if r == 0:
-            return self.p.mortgage_bal - self.p.monthly_pi * k
+            return max(0.0, self.p.mortgage_bal - self.p.monthly_pi * k)
         growth = (1 + r) ** k
-        return self.p.mortgage_bal * growth - self.p.monthly_pi * (growth - 1) / r
+        return max(0.0, self.p.mortgage_bal * growth - self.p.monthly_pi * (growth - 1) / r)
 
     # ── Sell today ────────────────────────────────────────────────────────────
     def calc_sell(self) -> Sell:

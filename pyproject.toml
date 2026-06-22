@@ -17,6 +17,7 @@ rent-vs-sell-report = "render:main"
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
+    "hypothesis>=6.0",
 ]
 
 [tool.ruff]
