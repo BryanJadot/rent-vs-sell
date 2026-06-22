@@ -282,18 +282,32 @@ function bestSell(P, years) {
   return Math.max(...P.invest_rates.map((r) => investNetWorth(P, np, years, r)));
 }
 
-function holdThenInvestNetWorth(P, monthlyRent, sellYear, horizon, appr, oppRate, sec121, rentGrowth) {
-  // Mirror of Model.hold_then_invest_net_worth: hold (rent) until sellYear, then invest the
-  // proceeds at the market rate to the horizon — wealth-over-time on the same footing as SELL.
+function chartSec121(P, saleYear) {
+  // Mirror of Model._chart_sec121: §121 keyed to the actual sale year, so the chart's HOLD
+  // line and the SELL comparator use ONE exclusion rule (kept within the 2-of-5-yr window,
+  // lost after) — they coincide at sell year 0 instead of differing by CG_EXCLUSION×rate.
+  return saleYear <= P.sell_soon_max_years ? "within_3yr" : "full_rental";
+}
+
+function holdThenInvestNetWorth(P, monthlyRent, sellYear, horizon, appr, oppRate, rentGrowth) {
+  // Mirror of Model.hold_then_invest_net_worth. Every point is after-fee, after-tax walk-away
+  // cash (comparability — see the Python docstring). ONE PLAN, ONE §121 RULE: the whole line is
+  // "I sell in year sellYear", so §121 keys off that ONE chosen sale year at every horizon (NOT
+  // re-keyed to the horizon on the still-holding leg — that would inject a CG_EXCLUSION×rate
+  // cliff at the 2-of-5-yr boundary on gain properties). Matches the SELL comparator, so the
+  // lines coincide at sellYear 0.
   oppRate = oppRate === undefined ? P.primary_invest : oppRate;
-  sec121 = sec121 || "full_rental";
   rentGrowth = rentGrowth === undefined ? P.rent_growth : rentGrowth;
-  // At/before the sell year you're still holding — hold value at the horizon, not yet cash.
+  const sec121 = chartSec121(P, sellYear);
+  // At/before the sell year you haven't reached your chosen sale yet — value = walk-away cash
+  // if sold AT THE HORIZON, but under the planned sale year's §121 rule.
   if (horizon <= sellYear) {
     return holdNetWorth(P, monthlyRent, horizon, appr, oppRate, sec121, rentGrowth).netWorth;
   }
-  // Sold at sellYear (already after-tax), then invested — only new market gains taxed again.
-  const nwAtSale = holdNetWorth(P, monthlyRent, sellYear, appr, oppRate, sec121, rentGrowth).netWorth;
+  // Sold at sellYear (after fee + tax), then invested — only new market gains taxed again.
+  const nwAtSale = holdNetWorth(
+    P, monthlyRent, sellYear, appr, oppRate, sec121, rentGrowth
+  ).netWorth;
   return investNetWorth(P, nwAtSale, horizon - sellYear, oppRate);
 }
 
@@ -328,6 +342,7 @@ if (typeof module !== "undefined" && module.exports) {
     investNetWorth,
     bestSell,
     breakEvenAppreciation,
+    chartSec121,
     holdThenInvestNetWorth,
     oopBreakdown,
     riskScenarios,
@@ -356,7 +371,7 @@ if (typeof document !== "undefined") {
   function timeSeries(appr, rentGrowth, marketRate, rentLevel, sellYear) {
     const grid = C.yearGrid;
     const hold = grid.map(
-      (y) => holdThenInvestNetWorth(P, rentLevel, sellYear, y, appr, marketRate, "full_rental", rentGrowth)
+      (y) => holdThenInvestNetWorth(P, rentLevel, sellYear, y, appr, marketRate, rentGrowth)
     );
     // SELL at the chosen market return — best of the invest scenarios is not used here
     // because the slider IS the market return; a single rate keeps the line interpretable.
@@ -404,9 +419,13 @@ if (typeof document !== "undefined") {
     const sellPts = grid.map((t, i) => `${px(t).toFixed(1)},${py(sell[i]).toFixed(1)}`).join(" ");
     const parts = [];
 
+    const crossPhrase =
+      crossover === null
+        ? "the two curves do not cross over the years shown"
+        : `the two curves cross around year ${crossover}`;
     parts.push(
-      `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Hold and sell net worth over the ` +
-        `holding period in years; the two curves cross at the crossover year." ` +
+      `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Hold and sell wealth over time, ` +
+        `in years; ${crossPhrase}." ` +
         `style="width:100%;height:auto;font:12px system-ui,sans-serif">`
     );
     parts.push(`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y0}" stroke="#bbb"/>`);
@@ -461,7 +480,7 @@ if (typeof document !== "undefined") {
     parts.push(`<text x="${(x1 - 6).toFixed(1)}" y="${(py(hold[hold.length - 1]) - 8).toFixed(1)}" text-anchor="end" fill="#36c">Hold</text>`);
     parts.push(`<text x="${(x1 - 6).toFixed(1)}" y="${(py(sell[sell.length - 1]) + 16).toFixed(1)}" text-anchor="end" fill="#2a7">Sell now</text>`);
     parts.push(
-      `<text x="${((x0 + x1) / 2).toFixed(0)}" y="${Hh - 4}" text-anchor="middle" fill="#444">Years held before selling</text>`
+      `<text x="${((x0 + x1) / 2).toFixed(0)}" y="${Hh - 4}" text-anchor="middle" fill="#444">Year</text>`
     );
     parts.push("</svg>");
     return parts.join("");
@@ -565,7 +584,7 @@ if (typeof document !== "undefined") {
     // HOLD = hold until the chosen sell year, then invest the proceeds — same wealth-over-time
     // basis as the chart, so the table and chart tell one coherent story.
     const holdAt = (y) =>
-      holdThenInvestNetWorth(P, rentLevel, sellYear, y, appr, marketRate, "full_rental", rentGrowth);
+      holdThenInvestNetWorth(P, rentLevel, sellYear, y, appr, marketRate, rentGrowth);
     const holdCells = horizons.map((y) => `<td>${fmtDollars(holdAt(y))}</td>`).join("");
     const sellCells = horizons
       .map((y) => `<td>${fmtDollars(investNetWorth(P, calcSell(P).netAfterTax, y, marketRate))}</td>`)

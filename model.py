@@ -559,14 +559,22 @@ class Model:
         feed the property each year must be charged that same opportunity: had you not
         spent it, it would have compounded pre-tax and been taxed once. A flat annual
         after-tax rate would tax it every year and understate the true opportunity cost,
-        unfairly favoring HOLD. The transform below is algebraically identical to
-        invest_net_worth's (verified), so both sides use one investment rule.
+        unfairly favoring HOLD.
+
+        Relation to invest_net_worth: for a POSITIVE cash flow this per-dollar transform
+        `cf·(1 + (growth−1)·(1−CG))` equals invest_net_worth's grow-pre-tax-then-tax-the-
+        gain rule exactly, so both sides use one investment rule. They DIVERGE for a
+        NEGATIVE cash flow (a drain — the common case here): this transform shields the
+        FORGONE growth at (1−CG), i.e. it charges the drain its true AFTER-TAX opportunity
+        cost (the right treatment — the money you didn't spend would have grown and been
+        taxed once), whereas invest_net_worth floors a loss at max(0, gain) and would carry
+        a negative principal forward at the full PRE-TAX rate. That asymmetry is deliberate:
+        a drain is an opportunity cost (after-tax), not a realized investment loss.
 
         Each year's cash flow is the ECONOMIC cash flow LESS any income tax owed on a
         profitable rental year (see _profit_year_taxes — zero while the property runs at
-        a tax loss, which is every year for a typical high-leverage hold). Works for
-        negative cash flow (a drain): only the gain portion is taxed, so an outflow is
-        carried forward as outflow + after-tax forgone growth.
+        a tax loss, which is every year for a typical high-leverage hold). Sign: a drain is
+        negative and is carried forward as outflow + after-tax forgone growth.
         """
         profit_taxes = self._profit_year_taxes(monthly_rent, years)
         fv = 0.0
@@ -710,6 +718,17 @@ class Model:
         np_ = self.calc_sell().net_after_tax  # invest AFTER the closing cap-gains tax
         return max(self.invest_net_worth(np_, years, r) for r in INVEST_RATES)
 
+    @staticmethod
+    def _chart_sec121(sale_year: int) -> Sec121:
+        """§121 treatment keyed to WHEN you actually sell. The primary-residence exclusion is
+        a function of sale timing + use history, NOT of which curve we're plotting — so the
+        chart's HOLD line and the SELL-now comparator (calc_sell, which applies it) must use
+        ONE rule: keep the exclusion while still inside the 2-of-5-yr window, lose it after.
+        Using FULL_RENTAL on the hold line against an exclusion-applying sell side would build
+        a fixed CG_EXCLUSION×rate handicap into HOLD at year 0 — an apples-to-oranges §121
+        mismatch, not a real difference (see the comparability note below)."""
+        return Sec121.WITHIN_3YR if sale_year <= SELL_SOON_MAX_YEARS else Sec121.FULL_RENTAL
+
     def hold_then_invest_net_worth(
         self,
         monthly_rent: float,
@@ -717,37 +736,47 @@ class Model:
         horizon: int,
         appr: float,
         opp_rate: float = PRIMARY_INVEST,
-        sec121: Sec121 = Sec121.FULL_RENTAL,
     ) -> float:
         """Wealth at `horizon` years if you HOLD (rent it out) until `sell_year`, sell, then
         invest the proceeds at the market rate for the remaining years.
 
-        This puts the HOLD path on the SAME footing as SELL-now as a function of CALENDAR
-        time: both are "your wealth in year t under one rule — invest at the market rate once
-        your money is liquid." Before sell_year you're still holding (the value IS
-        hold_net_worth at that point); at/after sell_year you've converted to cash and it
-        compounds like the sell side.
+        COMPARABILITY BASIS (deliberate — do not "fix" to mark-to-market): every point on both
+        the HOLD and SELL lines is "the cash you'd actually walk away with if you liquidated at
+        year t" — net of selling FEES and any cap-gains TAX, at every year. That's what makes
+        equal heights mean equal real (spendable) money. hold_net_worth(t) already nets both
+        the fee and the tax at every horizon, so the pre-sale leg is correct as-is. Showing the
+        pre-sale property at gross/mark-to-market value would float HOLD above its true cash
+        position and silently advantage it — rejected. The deferred home-gain tax is netted out
+        just as SELL's deferred investment-gain tax is, so the two stay symmetric.
 
-        hold_net_worth(sell_year) is already AFTER-tax (the year-`sell_year` sale's costs and
-        cap-gains/recapture are paid in it), so the post-sale leg taxes only the INCREMENTAL
-        market gains earned from sell_year→horizon — exactly invest_net_worth's
-        grow-pre-tax-tax-the-gain-once rule, identical to how SELL-now's proceeds are taxed.
-        So Hold-sold-at-S and Sell-now are directly comparable (the reader can stack them).
+        The post-sale leg invests the already-after-tax year-`sell_year` value and taxes only
+        the INCREMENTAL market gains (invest_net_worth's grow-pre-tax-tax-once rule, identical
+        to SELL-now).
 
-        At sell_year == 0 this reduces to investing the just-sold hold value (≡ the SELL-now
-        construction at the same appreciation-independent proceeds — a built-in sanity check).
-        When the horizon is at or BEFORE the sell year you haven't sold yet, so it's just the
-        hold value AT THE HORIZON (still a rental). A negative net worth (underwater early)
-        compounds like any principal in invest_net_worth (a shortfall carried at the market rate).
+        ONE PLAN, ONE §121 RULE. The whole HOLD line is a single committed decision — "I sell
+        in year `sell_year`" — so §121 is keyed to that ONE chosen sale year at EVERY horizon,
+        pre- and post-sale alike (see _chart_sec121). It is NOT re-keyed to the horizon on the
+        still-holding leg: doing so would silently switch §121 treatment partway up a line that
+        represents a single sale, producing a discontinuity (a CG_EXCLUSION×rate "cliff" at the
+        2-of-5-yr boundary) on properties that have appreciated into a gain — an artifact of
+        mixed rules, not a real economic event. Keying everything to `sell_year` also matches
+        the SELL-now comparator's rule, so at sell_year == 0 the HOLD value coincides with
+        SELL-now exactly (the built-in sanity check), on gain properties too.
+
+        When the horizon is at or before the sell year you haven't sold yet, so the value is
+        the (after-fee, after-tax) liquidation value AT THE HORIZON — but still valued under the
+        §121 rule of the planned sale year. A negative net worth (underwater early) compounds
+        like any principal in invest_net_worth.
         """
-        # Before (or at) the sell year you're still holding — the value is the hold value at
-        # the horizon, not yet converted to cash.
+        sec121 = self._chart_sec121(sell_year)  # one plan → one §121 rule, keyed to the sale year
+        # Before (or at) the sell year you haven't reached your chosen sale yet — each point is
+        # the (after-fee, after-tax) liquidation value AT THE HORIZON, under the sale-year rule.
         if horizon <= sell_year:
             return self.hold_net_worth(
                 monthly_rent, horizon, appr, opp_rate=opp_rate, sec121=sec121
             ).net_worth
-        # Sold at sell_year (value already after-tax), then invested to the horizon — only the
-        # incremental market gains are taxed again (invest_net_worth's grow-then-tax-once rule).
+        # Sold at sell_year (after fee + tax), then invested to the horizon — only incremental
+        # market gains taxed again.
         nw_at_sale = self.hold_net_worth(
             monthly_rent, sell_year, appr, opp_rate=opp_rate, sec121=sec121
         ).net_worth

@@ -224,6 +224,15 @@ for a model whose whole value is stable, correct figures.
 - The hold path is taxed at the *future* sale: selling costs, depreciation recapture
   (fed 25% + CA ordinary), capital-gains on appreciation, and §121 treatment. The sell
   path's investment gains are also taxed at liquidation — keep these symmetric.
+- **§1 chart comparability (walk-away-cash basis).** Every point on BOTH the Hold and Sell
+  lines is "the cash you'd actually have if you liquidated that year" — net of selling fees
+  AND any cap-gains tax, at every year (`hold_then_invest_net_worth` returns
+  `hold_net_worth(t)`, which already nets both). This is what makes equal heights mean equal
+  real money. **Mark-to-market (showing the pre-sale property at gross value) was considered
+  and REJECTED** — it floats Hold above its true cash position and silently advantages it.
+  Don't "fix" it back. Relatedly, the chart's §121 treatment is keyed to the *sale year*
+  (`Model._chart_sec121`: `within_3yr` if ≤ `SELL_SOON_MAX_YEARS`, else `full_rental`) so the
+  Hold line and the `calc_sell` comparator use ONE exclusion rule and coincide at sell-year 0.
 - Passive losses are **suspended** when MAGI is high and released at sale (no yearly
   shield). Don't "give back" the yearly depreciation shield unless
   `PASSIVE_LOSS_USABLE_YEARLY` is set.

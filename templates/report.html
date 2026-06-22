@@ -43,9 +43,10 @@
 
     <!-- Live net-worth chart (JS swaps its contents). Server-seeded for no-JS / print. -->
     <div id="be-chart-live">{{ be_chart_svg }}</div>
-    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) vs. <b>Sell now</b> (green). The purple dashed tick is the
-    <b>year sold</b> — the Hold line bends there as it switches from the property to invested cash. The gray dashed tick is the year
-    the mortgage is paid off; the black dot marks where the two paths cross.</p>
+    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) vs. <b>Sell now</b> (green). Each point is the <b>cash you'd
+    walk away with</b> if you turned that path into money that year — after selling fees and any tax. <b>Both lines are on that same
+    after-fee, after-tax basis, so equal heights mean equal real money.</b> The purple dashed tick is your chosen <b>year sold</b>
+    (after it, Hold has sold and the cash grows at the market); the gray tick is mortgage payoff{% if be_crossover_year is not none %}; the black dot is where the paths cross{% endif %}.</p>
 
     <!-- Live table — exact figures behind the chart. -->
     <table id="be-table-live" style="margin-top:14px">{{ be_table_seed }}</table>
@@ -90,7 +91,8 @@
   paid off. Sell now is flat $0 (proceeds reinvested, nothing withdrawn). Moves with the <b>rent</b> slider.</p>
   <div class="card" style="margin:10px 0">
     <div id="cashflow-chart-live">{{ cashflow_svg }}</div>
-    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) = yearly rent − operating costs − mortgage; the dashed tick is the
+    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) = yearly rent − operating costs − mortgage − expected risk drag (the
+    prob-weighted vacancy/eviction/repair cost from the assumptions table); the dashed tick is the
     year the loan is paid off. <b>Sell now</b> (green, flat $0).</p>
   </div>
 
@@ -134,7 +136,7 @@
         <tr><td>− Remaining loan balance</td><td class="num-bad">−{{ '{:,.0f}'.format(we.remaining_loan) }}</td><td class="sub">still owed after {{ worked_horizon }} yrs of payments</td></tr>
         <tr><td>− Selling costs at future sale</td><td class="num-bad">−{{ '{:,.0f}'.format(we.sale_costs) }}</td><td class="sub">~{{ '%.1f'|format(sale_cost_rate*100) }}% broker+transfer+title on the future price</td></tr>
         <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
-        <tr><td>− Cash you fed in (grown at the market return, like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
+        <tr><td>{% if we.cash_flow_fv <= 0 %}− Cash you fed in{% else %}+ Cash it threw off{% endif %} (grown at the market return, like the sell side)</td><td class="{% if we.cash_flow_fv <= 0 %}num-bad{% else %}num-good{% endif %}">{{ '−' if we.cash_flow_fv <= 0 else '+' }}{{ '{:,.0f}'.format(we.cash_flow_fv|abs) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
         <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses, deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
         <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed {{ '%g'|format(fed_recapture_pct) }}% + NIIT {{ '%g'|format(niit_pct) }}% + CA {{ '%g'|format(ca_top_pct) }}% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
         <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
@@ -184,10 +186,11 @@
 
   <div class="foot">
     <b>Simplifications.</b> Cap-gains and recapture rates are applied as flat effective rates (real brackets are graduated and
-    interact with other income). Both sides are treated symmetrically and after-tax: the sold proceeds and the hold path's cash
-    flow &amp; reserve all compound at the pre-tax {{ '%.0f'|format(primary_invest*100) }}% market return with the gain taxed once at
-    the end (the reserve at the bond rate). Not modeled in dollars: inflation (figures are nominal), the time cost of landlording,
-    the timing constraint of selling a tenanted home, and concentration risk.
+    interact with other income). Both sides are treated symmetrically: every figure on the §1 chart is <b>walk-away cash</b> — net
+    of selling fees <i>and</i> any tax at every year — and both paths compound at the pre-tax {{ '%.0f'|format(primary_invest*100) }}%
+    market return with the gain taxed once at the end (the reserve at the bond rate), so the two are directly comparable at every
+    year. Not modeled in dollars: inflation (figures are nominal), the time cost of landlording, the timing constraint of selling a
+    tenanted home, and concentration risk.
     <br><br>Auto-generated on {{ generated }}. Edit per-house inputs in <code>properties/*.toml</code>
     (or shared assumptions in <code>assumptions.py</code>) and re-run to refresh.
   </div>

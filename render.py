@@ -84,12 +84,12 @@ def _nw_row(label_html, values, cls="", bold_last=False):
 
 
 def _break_even_svg(chart: dict) -> str:
-    """Inline SVG of HOLD and SELL net worth over the holding period (X = years). The two
-    curves cross at the crossover year. Drawing only — every number comes from compute()'s
+    """Inline SVG of HOLD and SELL wealth over calendar time (X = years). The two curves
+    cross at the crossover year. Drawing only — every number comes from compute()'s
     break_even_chart; this does no financial math, just coordinate mapping. Strictly DATA:
-    two plain curves, a marked crossing, and a dashed tick at the mortgage-payoff year
-    (which explains the kink in HOLD). NO shading or labeling of a side as better — that
-    would be a verdict (CLAUDE.md rule 2). The JS buildSvg mirrors this layout.
+    two plain curves, a marked crossing, dashed ticks at the mortgage-payoff and chosen-sell
+    years. NO shading or labeling of a side as better — that would be a verdict (CLAUDE.md
+    rule 2). The JS buildSvg mirrors this layout.
     """
     grid = chart["year_grid"]
     hold = chart["hold"]
@@ -125,10 +125,14 @@ def _break_even_svg(chart: dict) -> str:
     hold_pts = " ".join(f"{px(t):.1f},{py(v):.1f}" for t, v in zip(grid, hold))
     sell_pts = " ".join(f"{px(t):.1f},{py(v):.1f}" for t, v in zip(grid, sell))
 
+    cross_phrase = (
+        f"the two curves cross around year {crossover}"
+        if crossover is not None
+        else "the two curves do not cross over the years shown"
+    )
     parts = [
         f'<svg viewBox="0 0 {W} {Hh}" role="img" '
-        'aria-label="Hold and sell net worth over the holding period in years; '
-        'the two curves cross at the crossover year." '
+        f'aria-label="Hold and sell wealth over time, in years; {cross_phrase}." '
         'style="width:100%;height:auto;font:12px system-ui,sans-serif">'
     ]
 
@@ -207,8 +211,7 @@ def _break_even_svg(chart: dict) -> str:
 
     # Axis title
     parts.append(
-        f'<text x="{(x0 + x1) / 2:.0f}" y="{Hh - 4}" text-anchor="middle" fill="#444">'
-        "Years held before selling</text>"
+        f'<text x="{(x0 + x1) / 2:.0f}" y="{Hh - 4}" text-anchor="middle" fill="#444">Year</text>'
     )
 
     parts.append("</svg>")
@@ -634,6 +637,7 @@ def build_context(m: Model) -> dict:
         "deprec_net": f"{we.deprec_release - we.recapture:+,.0f}",
         "sells_at_loss": sells_at_loss,
         "be_chart_svg": M(be_chart_svg),
+        "be_crossover_year": computed["break_even_chart"]["crossover_year"],
         "be_table_seed": M(be_table_seed),
         "cashflow_svg": M(cashflow_svg),
         "cashflow_table_seed": M(cashflow_table_seed),

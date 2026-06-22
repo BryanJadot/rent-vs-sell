@@ -210,29 +210,59 @@ def test_break_even_chart_is_wealth_over_time(m):
 
 
 def test_hold_then_invest_boundaries(m):
-    """hold_then_invest_net_worth must reduce correctly at its boundaries:
-    - horizon <= sell_year: still holding → equals plain hold_net_worth at the horizon.
-    - sell_year == 0: equals investing the just-sold (year-0) hold value at the market rate.
-    - horizon > sell_year: equals hold value at sell_year, then invest_net_worth to horizon.
+    """hold_then_invest_net_worth must reduce correctly at its boundaries. ONE PLAN, ONE §121
+    RULE: the whole line is "sell in year sell_year", so §121 keys off sell_year at EVERY
+    horizon — NOT re-keyed to the horizon on the still-holding leg (that would inject a cliff).
+    - horizon <= sell_year: still holding → hold_net_worth at the horizon, valued under the
+      planned sale year's §121 rule.
+    - horizon > sell_year: hold value at sell_year (same §121 rule), then invested.
     """
     r = m.p.primary_rent
     rate = assumptions.PRIMARY_INVEST
-    # Before the sell year — still a rental at the horizon.
+    s121 = m._chart_sec121  # treatment keyed to a given sale year
+
+    # Before the sell year (S=10>3 → FULL_RENTAL): the horizon (5) is valued under the SALE
+    # YEAR's rule (FULL_RENTAL), NOT the horizon's own rule — proving §121 keys off sell_year.
     assert m.hold_then_invest_net_worth(r, 10, 5, 0.0485) == pytest.approx(
-        m.hold_net_worth(r, 5, 0.0485).net_worth
+        m.hold_net_worth(r, 5, 0.0485, sec121=s121(10)).net_worth
     )
     # At the sell year — no post-sale leg.
     assert m.hold_then_invest_net_worth(r, 10, 10, 0.0485) == pytest.approx(
-        m.hold_net_worth(r, 10, 0.0485).net_worth
+        m.hold_net_worth(r, 10, 0.0485, sec121=s121(10)).net_worth
     )
-    # sell_year == 0 — sell immediately, invest the year-0 hold value.
-    expected0 = m.invest_net_worth(m.hold_net_worth(r, 0, 0.0485).net_worth, 15, rate)
+    # sell_year == 0 (<=3 → WITHIN_3YR) — sell immediately, invest the year-0 hold value.
+    expected0 = m.invest_net_worth(
+        m.hold_net_worth(r, 0, 0.0485, sec121=s121(0)).net_worth, 15, rate
+    )
     assert m.hold_then_invest_net_worth(r, 0, 15, 0.0485) == pytest.approx(expected0)
-    # After the sell year — hold value at S then invested for (horizon − S).
-    nw_at_s = m.hold_net_worth(r, 10, 0.0485).net_worth
+    # After the sell year — hold value at S (§121 by S) then invested for (horizon − S).
+    nw_at_s = m.hold_net_worth(r, 10, 0.0485, sec121=s121(10)).net_worth
     assert m.hold_then_invest_net_worth(r, 10, 30, 0.0485) == pytest.approx(
         m.invest_net_worth(nw_at_s, 20, rate)
     )
+
+    # No §121 cliff: with a planned sale year inside the window (S=3 → WITHIN_3YR), the
+    # still-holding leg must NOT switch to FULL_RENTAL as the horizon crosses SELL_SOON_MAX_YEARS.
+    # The single-plan rule keeps every horizon on s121(3); a per-horizon rule would diverge at 4.
+    for h in (2, 3):
+        assert m.hold_then_invest_net_worth(r, 3, h, 0.0485) == pytest.approx(
+            m.hold_net_worth(r, h, 0.0485, sec121=s121(3)).net_worth
+        )
+
+
+def test_chart_hold_coincides_with_sell_at_year_zero_on_a_gain(fix):
+    """Regression guard for the §121 chart-symmetry bug: at sell_year == 0 the HOLD line must
+    equal SELL-now to the cent, INCLUDING on a gain property. Previously the chart's HOLD used
+    FULL_RENTAL (no §121) while calc_sell applied the exclusion, so the identical 'sell today'
+    act diverged by CG_EXCLUSION × CAP_GAINS_RATE (~$92,750). Now both key §121 off the sale
+    year, so year 0 coincides."""
+    assert fix.calc_sell().capital_gain > 0  # the fixture is a gain property
+    rate = assumptions.PRIMARY_INVEST
+    np_at = fix.calc_sell().net_after_tax
+    for t in (0, 3, 5, 10, 20, 30):
+        hold0 = fix.hold_then_invest_net_worth(fix.p.primary_rent, 0, t, 0.0485, opp_rate=rate)
+        sell = fix.invest_net_worth(np_at, t, rate)
+        assert hold0 == pytest.approx(sell), f"S=0 must equal Sell-now at t={t}"
 
 
 def test_two_properties_are_independent():
