@@ -573,13 +573,18 @@ if (typeof document !== "undefined") {
       ["Insurance", -P.insurance],
       ["Repairs / maintenance", -P.repairs],
       ["Management &amp; leasing", -(rt.mgmt + rt.leasing)],
-      ["Yearly depreciation tax break", oop.taxBack],
+      [
+        'Yearly depreciation tax break <span class="sub">(none now — suspended at income &gt;$' +
+          (P.passive_loss_magi_limit / 1000).toLocaleString("en-US") +
+          "k, used at sale; see §3)</span>",
+        oop.taxBack,
+      ],
     ];
     let body = "";
     for (const [label, v] of rows) {
       const cell =
         v === 0
-          ? '<td class="sub">—</td>'
+          ? '<td class="sub">$0</td>'
           : `<td class="${v > 0 ? "num-good" : "num-bad"}">${fmtSigned(v)}</td>`;
       body += `<tr><td>${label}</td>${cell}</tr>`;
     }
@@ -610,14 +615,14 @@ if (typeof document !== "undefined") {
       body += `<tr><td>${label}</td>${hitS}<td class="num-bad">${neg(total)}</td></tr>`;
     }
     body +=
-      `<tr class="total"><td>WORST CASE: all three in one year</td>` +
+      `<tr class="total"><td>Worst case: all three in one year</td>` +
       `<td class="num-bad">${neg(r.worst_extra)}</td><td class="num-bad">${neg(r.worst_total)}</td></tr>`;
     const rk = (rentLevel / 1000)
       .toLocaleString("en-US", { maximumFractionDigits: 2 })
       .replace(/\.?0+$/, "");
     return (
-      `<thead><tr><th>Scenario (at $${rk}k/mo)</th><th>Added cost this event</th>` +
-      `<th>Whole-year cash out</th></tr></thead><tbody>${body}</tbody>`
+      `<thead><tr><th>Scenario (at $${rk}k/mo)</th><th>Extra cost of this event</th>` +
+      `<th>Total out of pocket that year</th></tr></thead><tbody>${body}</tbody>`
     );
   }
 

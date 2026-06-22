@@ -10,12 +10,14 @@
   <!-- One control set, pinned, driving every live chart/table on the page (JS binds by id,
        so it works across sections). Hidden in print, where the server-rendered seeds stand in. -->
   <div class="sliderbar">
+    <p class="sub" style="margin:0 0 8px;font-size:13px"><b>Your assumptions.</b> These controls drive every chart and table below
+    and stay pinned as you scroll — drag any of them to see the figures update.</p>
     <div class="sliders">
       <label>Home appreciation <span class="slider-val" id="val-appr">{{ '%g'|format(slider_appr_default) }}%</span>
         <input type="range" id="slider-appr" min="{{ slider_appr_min }}" max="{{ slider_appr_max }}" step="{{ slider_pct_step }}" value="{{ slider_appr_default }}"></label>
       <label>Rent growth <span class="slider-val" id="val-rent">{{ '%g'|format(slider_rent_default) }}%</span>
         <input type="range" id="slider-rent" min="{{ slider_rent_min }}" max="{{ slider_rent_max }}" step="{{ slider_pct_step }}" value="{{ slider_rent_default }}"></label>
-      <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
+      <label>Market return <span class="sub" style="font-weight:400">(stocks)</span> <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
         <input type="range" id="slider-market" min="{{ slider_market_min }}" max="{{ slider_market_max }}" step="{{ slider_pct_step }}" value="{{ slider_market_default }}"></label>
       <label>Initial rent <span class="slider-val" id="val-rentlevel">${{ '{:,.0f}'.format(slider_rentlevel_default) }}/mo</span>
         <input type="range" id="slider-rentlevel" min="{{ slider_rentlevel_min }}" max="{{ slider_rentlevel_max }}"
@@ -27,34 +29,34 @@
 
   <!-- ===== 1. THE MONEY ===== -->
   <h2>1. The money — what each path is worth</h2>
-  <p class="sub">Total wealth each path leaves you with at each horizon, fully loaded (all costs and taxes on both sides) —
-  at the assumptions you set with the sliders above.</p>
-
-  <h3>Hold vs. Sell over time</h3>
-  <p class="sub">How each path's total wealth grows with the number of years you hold before selling. The break-even
-  appreciation (where Hold ties Sell), and the effect of a different rent, rent-growth, or market return, are all here — set the
-  sliders and read the table and the crossover. (Figures only — this draws no conclusion.)</p>
+  <p class="sub">The total wealth each path leaves you with, after all costs and taxes on both sides. Drag the sliders to test a
+  different appreciation rate, rent, rent-growth, or market return — the chart and table update live. (Figures only — this draws
+  no conclusion about which to pick.)</p>
   <div class="card" style="margin:10px 0">
-    <!-- Live table (JS swaps its contents). Seeded server-side at the base case so it shows
-         before JS runs, when JS is off, and in print. -->
-    <table id="be-table-live">{{ be_table_seed }}</table>
-    <p class="legend" style="margin:0 0 10px">Total wealth each path leaves you with at each horizon, at the assumptions set on
-    the sliders. "Hold − Sell" is the difference (＋ means the Hold figure is larger, − means Sell).</p>
+    <!-- The live readout (plain-language headline) sits ABOVE the chart so it's the first
+         thing read, not a footnote. -->
+    <p id="be-readout" class="readout" style="margin:0 0 10px">Drag a slider to see the live figures.</p>
 
     <!-- Live net-worth chart (JS swaps its contents). Server-seeded for no-JS / print. -->
     <div id="be-chart-live">{{ be_chart_svg }}</div>
-    <p id="be-readout" class="readout">Drag a slider to see the live figures.</p>
-    <p class="legend" style="margin-top:8px">Each curve is total wealth at that holding length: <b>Hold</b> (blue, keep &amp; rent
-    then sell) vs. <b>Sell now</b> (green, sell today and invest the proceeds). The black dot marks where they cross; the dashed
-    tick is the year the mortgage is paid off (the Hold curve bends there as the P&amp;I payment ends).</p>
+    <p class="legend" style="margin-top:8px">Two paths' total wealth: <b>Hold</b> (blue, keep &amp; rent, then sell) vs.
+    <b>Sell now</b> (green, sell today and invest the proceeds). The black dot marks where they cross; the dashed tick is the year
+    the mortgage is paid off.</p>
+
+    <!-- Live table — exact figures behind the chart. -->
+    <table id="be-table-live" style="margin-top:14px">{{ be_table_seed }}</table>
+    <p class="legend" style="margin:0">Exact figures at each horizon. "Hold − Sell" is the difference (＋ = the Hold figure is
+    larger, − = Sell).</p>
   </div>
-  <p class="legend">A held rental forfeits the §{{ '{:g}'.format(cg_exclusion/1000) }}k §121 home-sale exclusion. Selling
-  <b>within {{ sell_soon_max_years }} years</b> still keeps it (the 2-of-5-year residence test) — worth about
+  <p class="legend">Once it's a pure rental you lose the home-sale tax break that shields the first
+  ${{ '{:g}'.format(cg_exclusion/1000) }}k of gain (the <b>§121 exclusion</b>, explained in §3). Selling
+  <b>within {{ sell_soon_max_years }} years</b> still keeps it (you've lived there 2 of the last 5 years) — worth about
   ${{ '{:,.0f}'.format(sec121_benefit_3yr) }} at {{ sell_soon_max_years }} years here; past that it lapses.</p>
 
   <!-- ===== 2. WHAT EACH PATH ASKS OF YOU ===== -->
   <h2>2. What each path asks of you</h2>
-  <p class="sub">Beyond the dollars — the non-financial trade-offs. Stated as facts for each side, not advice.</p>
+  <p class="sub">First the non-financial trade-offs (effort, liquidity, obligations), then the real cash each path takes from or
+  puts in your pocket year by year. Stated as facts for each side, not advice.</p>
   <div class="grid">
     <div>
       <b>Holding means…</b>
@@ -62,7 +64,7 @@
         <li>running a rental — tenants, repairs, turnover, management</li>
         <li>funding a monthly cash drain out of savings (below) until the loan is paid off</li>
         <li>wealth concentrated in one mortgaged, illiquid property</li>
-        <li>landlord duties: AB 1482 rent-cap (keep the exemption by serving the written notice) and just-cause eviction; a tenant-occupied home is harder to sell vacant</li>
+        <li>landlord duties under California's AB 1482 rent-cap law (keep the exemption by serving the required written notice) and just-cause eviction; a tenant-occupied home is harder to sell vacant</li>
         <li>the gain taxed later, at the future sale</li>
       </ul>
     </div>
@@ -102,11 +104,6 @@
 
   <!-- ===== 3. SHOW YOUR WORK ===== -->
   <h2>3. Show your work — how a number is built</h2>
-  <p class="sub">One fully worked example, so you can see the <b>pieces</b> behind any figure above and how they combine. These use
-  <b>fixed values</b> ({{ worked_horizon }} years, ${{ '{:g}'.format(primary_rent/1000) }}k/mo rent, {{ '%g'|format(primary_appreciation*100) }}% appreciation,
-  {{ '%g'|format(primary_invest*100) }}% market) — they do <b>not</b> follow the sliders; they show the <i>method</i> the live charts use at every setting.
-  Cap-gains and depreciation-recapture are applied <b>symmetrically</b> — they tax the home's gain and the sell side's investment
-  gain on the same footing (component rates in §4).</p>
 
   <h3>A few money words, in plain English</h3>
   <ul style="margin:6px 0 0">
@@ -115,8 +112,15 @@
     <li><b>Depreciation</b> — a yearly paper deduction landlords take for wear-and-tear. At high income it can't be used yearly (it's <b>suspended</b>) and is applied later when you sell.</li>
     <li><b>Depreciation recapture</b> — at sale, the IRS taxes back those depreciation deductions ({{ '%.1f'|format(deprec_recapture_rate*100) }}% here).</li>
     <li><b>Future dollars</b> — figures aren't inflation-adjusted: at {{ '%g'|format(inflation_pct) }}% inflation, $1 in {{ longest_horizon }} yrs is worth ~{{ '%.0f'|format(today_value_pct) }}&cent; today. Both paths use the same future dollars, so they stay comparable.</li>
-    <li><b>Pre-tax / after-tax</b> — both paths grow money pre-tax and pay the tax once at the end, so the comparison is fair.</li>
+    <li><b>Pre-tax / after-tax</b> — "pre-tax" is before tax is taken out, "after-tax" is what's left once it's paid. Both paths grow pre-tax and pay tax once at the end, so the comparison is fair.</li>
   </ul>
+
+  <p class="sub" style="margin-top:14px">Below is one fully worked example, so you can see the <b>pieces</b> behind any figure above
+  and how they combine. It uses <b>fixed values</b> ({{ worked_horizon }} years, ${{ '{:g}'.format(primary_rent/1000) }}k/mo rent,
+  {{ '%g'|format(primary_appreciation*100) }}% appreciation, {{ '%g'|format(primary_invest*100) }}% market) — it does <b>not</b> follow the sliders;
+  it shows the <i>method</i> the live charts use at every setting. Cap-gains and depreciation-recapture are applied
+  <b>symmetrically</b> — the home's gain and the sell side's stock gains are taxed the same way, so neither path gets an unfair tax
+  break (component rates in §4).</p>
 
   <h3>What goes into a "Hold" number <span class="sub">(fixed example: {{ worked_horizon }}-yr, ${{ '{:g}'.format(primary_rent/1000) }}k rent, full rental)</span> → ${{ '{:,.0f}'.format(we.net_worth) }}</h3>
     <table style="margin-top:8px">
@@ -126,7 +130,7 @@
         <tr><td>− Remaining loan balance</td><td class="num-bad">−{{ '{:,.0f}'.format(we.remaining_loan) }}</td><td class="sub">still owed after {{ worked_horizon }} yrs of payments</td></tr>
         <tr><td>− Selling costs at future sale</td><td class="num-bad">−{{ '{:,.0f}'.format(we.sale_costs) }}</td><td class="sub">~{{ '%.1f'|format(sale_cost_rate*100) }}% broker+transfer+title on the future price</td></tr>
         <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
-        <tr><td>± Cash flow (grown at the market return, like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
+        <tr><td>− Cash you fed in (grown at the market return, like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
         <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses, deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
         <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + NIIT 3.8% + CA 13.3% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
         <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
@@ -140,7 +144,8 @@
       &gt;${{ '{:g}'.format(passive_loss_magi_limit/1000) }}k those losses can't be deducted yearly — they're <b>suspended</b> and
       <b>released at sale</b>, deducted at the {{ '%.0f'|format(marginal_tax*100) }}% rate (+${{ '{:,.0f}'.format(we.deprec_release) }}).
       At sale the IRS also <b>recaptures</b> the depreciation at {{ '%.1f'|format(deprec_recapture_rate*100) }}%
-      (fed 25% + NIIT 3.8% + CA 13.3%) (−${{ '{:,.0f}'.format(we.recapture) }}). Net of the two: <b>{{ deprec_net }}</b>.
+      (fed 25% + NIIT 3.8% + CA 13.3%) (−${{ '{:,.0f}'.format(we.recapture) }}). The released losses (+${{ '{:,.0f}'.format(we.deprec_release) }})
+      minus the recapture (−${{ '{:,.0f}'.format(we.recapture) }}) net to <b>{{ deprec_net }}</b>.
       They don't fully cancel: recapture accrues on every year of depreciation, while the released loss pool is drawn down once the
       rental turns tax-positive in later years. None of this affects monthly cash flow; it lands at sale. <i>Confirm with a CPA.</i>
     </div>
@@ -155,11 +160,12 @@
         <tr><td>− Mortgage payoff</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.payoff) }}</td><td class="sub">remaining balance</td></tr>
         <tr class="total"><td>= Net cash proceeds</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_proceeds) }}</td><td></td></tr>
         {% if sells_at_loss %}
-        <tr><td>Capital gain/loss</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.capital_gain|abs) }}</td><td class="sub">a loss: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis</td></tr>
-        <tr><td>− Capital gains tax</td><td>${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">$0 — no tax on a loss</td></tr>
+        <tr><td>− Capital gains tax</td><td>$0</td><td class="sub">none owed — sold at a loss (sale price after costs of
+          ${{ '{:,.0f}'.format(sell.price - sell.total_costs) }} is below the ${{ '%.2f'|format(cost_basis/1e6) }}M you paid)</td></tr>
         {% else %}
-        <tr><td>Capital gain/loss</td><td class="num-good">+{{ '{:,.0f}'.format(sell.capital_gain) }}</td><td class="sub">a gain: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis, less §{{ '{:g}'.format(cg_exclusion/1000) }}k exclusion if eligible</td></tr>
-        <tr><td>− Capital gains tax</td><td class="num-bad">−${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on the taxable gain</td></tr>
+        <tr><td>− Capital gains tax</td><td class="num-bad">−${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on
+          the ${{ '{:,.0f}'.format(sell.capital_gain) }} gain (sale price after costs vs. the ${{ '%.2f'|format(cost_basis/1e6) }}M you paid),
+          less the §{{ '{:g}'.format(cg_exclusion/1000) }}k exclusion if eligible</td></tr>
         {% endif %}
         <tr class="total"><td>= Amount invested (after tax)</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_after_tax) }}</td><td class="sub">this is what compounds on the sell side</td></tr>
       </tbody>

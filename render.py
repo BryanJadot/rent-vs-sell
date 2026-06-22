@@ -44,6 +44,7 @@ from assumptions import (
     CA_TOP_RATE,
     FED_RECAPTURE,
     PRIMARY_INVEST,
+    RESERVE_RATE,
     BAD_VACANCY_MONTHS,
     EVICTION_COST,
     MAJOR_REPAIR,
@@ -319,12 +320,16 @@ def _cashflow_table_html(m: Model, rent: float) -> str:
         ("Insurance", -m.p.insurance),
         ("Repairs / maintenance", -m.p.repairs),
         ("Management &amp; leasing", -(rt.mgmt + rt.leasing)),
-        ("Yearly depreciation tax break", oop.tax_back),
+        (
+            f"Yearly depreciation tax break "
+            f'<span class="sub">(none now — suspended at income &gt;${PASSIVE_LOSS_MAGI_LIMIT / 1000:g}k, used at sale; see §3)</span>',
+            oop.tax_back,
+        ),
     ]
     body = ""
     for label, v in rows:
         if v == 0:
-            cell = '<td class="sub">—</td>'
+            cell = '<td class="sub">$0</td>'
         else:
             cls = "num-good" if v > 0 else "num-bad"
             sign = "+" if v > 0 else "−"
@@ -363,13 +368,13 @@ def _badyear_table_html(m: Model, rent: float) -> str:
         hit_s = "<td>—</td>" if hit == 0 else f'<td class="num-bad">−{abs(hit):,.0f}</td>'
         body += f'<tr><td>{label}</td>{hit_s}<td class="num-bad">−{abs(total):,.0f}</td></tr>'
     body += (
-        f'<tr class="total"><td>WORST CASE: all three in one year</td>'
+        f'<tr class="total"><td>Worst case: all three in one year</td>'
         f'<td class="num-bad">−{abs(r["worst_extra"]):,.0f}</td>'
         f'<td class="num-bad">−{abs(r["worst_total"]):,.0f}</td></tr>'
     )
     return (
-        f"<thead><tr><th>Scenario (at ${rent / 1000:g}k/mo)</th><th>Added cost this event</th>"
-        f"<th>Whole-year cash out</th></tr></thead><tbody>{body}</tbody>"
+        f"<thead><tr><th>Scenario (at ${rent / 1000:g}k/mo)</th><th>Extra cost of this event</th>"
+        f"<th>Total out of pocket that year</th></tr></thead><tbody>{body}</tbody>"
     )
 
 
@@ -507,6 +512,12 @@ def build_context(m: Model) -> dict:
             f"(capital improvement → ${m.net_major_repair:,.0f} net of tax). Worst case stacks all three.",
         ),
         ("Cash reserve", f"${p.cash_reserve:,.0f}", "landlord buffer estimate"),
+        (
+            "Reserve return (bonds)",
+            f"{RESERVE_RATE * 100:g}%",
+            "the reserve must stay liquid/safe, so it earns the short-term bond rate, "
+            "not the market — the hold side gives up the spread",
+        ),
     ]
     assumption_rows = "".join(
         f'<tr><td>{name}</td><td>{val}</td><td class="sub">{src}</td></tr>' for name, val, src in a
