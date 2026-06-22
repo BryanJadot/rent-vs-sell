@@ -17,7 +17,7 @@
         <input type="range" id="slider-rent" min="{{ slider_rent_min }}" max="{{ slider_rent_max }}" step="{{ slider_pct_step }}" value="{{ slider_rent_default }}"></label>
       <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
         <input type="range" id="slider-market" min="{{ slider_market_min }}" max="{{ slider_market_max }}" step="{{ slider_pct_step }}" value="{{ slider_market_default }}"></label>
-      <label>Rent level <span class="slider-val" id="val-rentlevel">${{ '{:,.0f}'.format(slider_rentlevel_default) }}/mo</span>
+      <label>Initial rent <span class="slider-val" id="val-rentlevel">${{ '{:,.0f}'.format(slider_rentlevel_default) }}/mo</span>
         <input type="range" id="slider-rentlevel" min="{{ slider_rentlevel_min }}" max="{{ slider_rentlevel_max }}"
           step="{{ slider_rentlevel_step }}" value="{{ slider_rentlevel_default }}"></label>
     </div>
@@ -89,7 +89,7 @@
   </div>
 
   <h4 style="margin:18px 0 4px;color:var(--accent);font-size:14px">The year-1 cash breakdown</h4>
-  <p class="sub" style="margin:0 0 6px">Real cash in and out of the bank account in the first year, at the rent set on the slider.</p>
+  <p class="sub" style="margin:0 0 6px">Real cash in and out of the bank account in the first year, at the initial rent set on the slider.</p>
   <table id="be-cashflow-table-live">{{ cashflow_table_seed }}</table>
 
   <h4 style="margin:18px 0 4px;color:var(--accent);font-size:14px">What a bad year costs</h4>
