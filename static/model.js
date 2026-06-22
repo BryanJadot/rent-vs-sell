@@ -269,10 +269,11 @@ function holdNetWorth(P, monthlyRent, years, appr, oppRate, sec121, rentGrowth) 
 }
 
 function investNetWorth(P, netProceeds, years, rate) {
-  // Mirror of Model.invest_net_worth (gain taxed once at liquidation).
+  // Mirror of Model.invest_net_worth: gain taxed once at liquidation; only a POSITIVE gain
+  // is taxed (a loss / negative principal gets no credit — see the Python docstring).
   const ending = netProceeds * Math.pow(1 + rate, years);
   const gain = ending - netProceeds;
-  return ending - gain * P.cap_gains_rate;
+  return ending - Math.max(0.0, gain) * P.cap_gains_rate;
 }
 
 function bestSell(P, years) {

@@ -694,10 +694,17 @@ class Model:
 
     def invest_net_worth(self, net_proceeds: float, years: int, rate: float) -> float:
         """SELL path: proceeds compounded, investment gain taxed at LT cap-gains at
-        liquidation — symmetric with the hold path's taxed home gain."""
+        liquidation — symmetric with the hold path's taxed home gain.
+
+        The cap-gains haircut applies only to a POSITIVE gain: a loss (or a negative
+        principal — an underwater hold carried forward at the market rate) generates no tax
+        and, crucially, no tax CREDIT. Without the max(0,…) a negative gain would *add* value
+        back (a refundable credit on a shortfall), overstating an underwater position — a real
+        bug reachable from the sliders (e.g. 0% appreciation, a late sale year). A carried
+        shortfall just compounds as straight debt."""
         ending = net_proceeds * (1 + rate) ** years
         gain = ending - net_proceeds
-        return ending - gain * CAP_GAINS_RATE
+        return ending - max(0.0, gain) * CAP_GAINS_RATE
 
     def best_sell(self, years: int) -> float:
         np_ = self.calc_sell().net_after_tax  # invest AFTER the closing cap-gains tax

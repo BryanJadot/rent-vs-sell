@@ -136,7 +136,7 @@
         <tr class="total"><td>= Net equity after sale</td><td>{{ '{:,.0f}'.format(we.gross_equity) }}</td><td></td></tr>
         <tr><td>− Cash you fed in (grown at the market return, like the sell side)</td><td class="num-bad">{{ '{:,.0f}'.format(we.cash_flow_fv) }}</td><td class="sub">{{ worked_horizon }} yrs of cash flow, grown {{ '%g'|format(primary_invest*100) }}% pre-tax &amp; taxed once</td></tr>
         <tr><td>+ Suspended rental losses released</td><td class="num-good">+{{ '{:,.0f}'.format(we.deprec_release) }}</td><td class="sub">accumulated operating tax losses, deducted at {{ '%.0f'|format(marginal_tax*100) }}% at sale</td></tr>
-        <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed 25% + NIIT 3.8% + CA 13.3% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
+        <tr><td>− Depreciation recapture</td><td class="num-bad">−{{ '{:,.0f}'.format(we.recapture) }}</td><td class="sub">fed {{ '%g'|format(fed_recapture_pct) }}% + NIIT {{ '%g'|format(niit_pct) }}% + CA {{ '%g'|format(ca_top_pct) }}% ({{ '%.1f'|format(deprec_recapture_rate*100) }}%) on depreciation taken</td></tr>
         <tr><td>− Cap-gains tax on appreciation</td><td class="num-bad">−{{ '{:,.0f}'.format(we.cap_gains_tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on ${{ '{:,.0f}'.format(we.appreciation_gain) }} gain (no §121 as a rental)</td></tr>
         <tr><td>− Reserve opportunity cost</td><td class="num-bad">−{{ '{:,.0f}'.format(we.reserve_opp_cost) }}</td><td class="sub">${{ '{:,.0f}'.format(cash_reserve) }} reserve in bonds vs. the market return</td></tr>
         <tr class="total"><td>= Net worth at {{ worked_horizon }} yrs</td><td><b>{{ '{:,.0f}'.format(we.net_worth) }}</b></td><td></td></tr>
@@ -148,7 +148,7 @@
       &gt;${{ '{:g}'.format(passive_loss_magi_limit/1000) }}k those losses can't be deducted yearly — they're <b>suspended</b> and
       <b>released at sale</b>, deducted at the {{ '%.0f'|format(marginal_tax*100) }}% rate (+${{ '{:,.0f}'.format(we.deprec_release) }}).
       At sale the IRS also <b>recaptures</b> the depreciation at {{ '%.1f'|format(deprec_recapture_rate*100) }}%
-      (fed 25% + NIIT 3.8% + CA 13.3%) (−${{ '{:,.0f}'.format(we.recapture) }}). The released losses (+${{ '{:,.0f}'.format(we.deprec_release) }})
+      (fed {{ '%g'|format(fed_recapture_pct) }}% + NIIT {{ '%g'|format(niit_pct) }}% + CA {{ '%g'|format(ca_top_pct) }}%) (−${{ '{:,.0f}'.format(we.recapture) }}). The released losses (+${{ '{:,.0f}'.format(we.deprec_release) }})
       minus the recapture (−${{ '{:,.0f}'.format(we.recapture) }}) net to <b>{{ deprec_net }}</b>.
       They don't fully cancel: recapture accrues on every year of depreciation, while the released loss pool is drawn down once the
       rental turns tax-positive in later years. None of this affects monthly cash flow; it lands at sale. <i>Confirm with a CPA.</i>
