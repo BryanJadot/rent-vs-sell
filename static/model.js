@@ -598,31 +598,33 @@ if (typeof document !== "undefined") {
     return `<thead><tr><th>Cash item (at $${rk}k/mo)</th><th>Year 1</th></tr></thead><tbody>${body}</tbody>`;
   }
 
-  // Bad-year cost table at one rent (mirror of render._badyear_table_html).
+  // Bad-year cost table at one rent (mirror of render._badyear_table_html). No running-total
+  // column — each event shows only its own extra cost (events are independent; they don't
+  // stack or sum down). Baseline and the all-three worst case are their own framed rows.
   function buildBadYearTable(rentLevel) {
     const r = riskScenarios(P, rentLevel);
-    const base = r.baseline;
-    const scen = [
-      ["Normal year (baseline)", 0, base],
-      ["+ A long vacancy (above normal turnover)", r.extra_vacancy, base + r.extra_vacancy],
-      ["+ Non-paying tenant + eviction", r.eviction, base + r.eviction],
-      ["+ Major repair (roof/foundation), net of tax", r.major_repair, base + r.major_repair],
-    ];
     const neg = (v) => `−$${Math.abs(Math.round(v)).toLocaleString("en-US")}`;
-    let body = "";
-    for (const [label, hit, total] of scen) {
-      const hitS = hit === 0 ? "<td>—</td>" : `<td class="num-bad">${neg(hit)}</td>`;
-      body += `<tr><td>${label}</td>${hitS}<td class="num-bad">${neg(total)}</td></tr>`;
+    const events = [
+      ["A long vacancy (above normal turnover)", r.extra_vacancy],
+      ["A non-paying tenant + eviction", r.eviction],
+      ["A major repair (roof/foundation), net of tax", r.major_repair],
+    ];
+    let body =
+      `<tr class="primary"><td>A <b>normal</b> year already costs</td>` +
+      `<td class="num-bad">${neg(r.baseline)}</td></tr>` +
+      `<tr><td colspan="2" class="sub">Any <b>one</b> bad event that year adds, on its own ` +
+      `(they don't stack):</td></tr>`;
+    for (const [label, hit] of events) {
+      body += `<tr><td>&nbsp;&nbsp;${label}</td><td class="num-bad">${neg(hit)}</td></tr>`;
     }
     body +=
-      `<tr class="total"><td>Worst case: all three in one year</td>` +
-      `<td class="num-bad">${neg(r.worst_extra)}</td><td class="num-bad">${neg(r.worst_total)}</td></tr>`;
+      `<tr class="total"><td>All <b>three</b> at once → that year costs</td>` +
+      `<td class="num-bad">${neg(r.worst_total)}</td></tr>`;
     const rk = (rentLevel / 1000)
       .toLocaleString("en-US", { maximumFractionDigits: 2 })
       .replace(/\.?0+$/, "");
     return (
-      `<thead><tr><th>Scenario (at $${rk}k/mo)</th><th>Extra cost of this event</th>` +
-      `<th>Total out of pocket that year</th></tr></thead><tbody>${body}</tbody>`
+      `<thead><tr><th>At $${rk}k/mo</th><th>Out of pocket</th></tr></thead><tbody>${body}</tbody>`
     );
   }
 

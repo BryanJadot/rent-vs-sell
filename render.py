@@ -350,31 +350,33 @@ def _badyear_table_html(m: Model, rent: float) -> str:
     """Bad-year cost table at one rent — server seed for the live table
     (#be-badyear-table-live). Uses Model.risk_scenarios (one math source). Mirrored by
     static/model.js buildBadYearTable.
+
+    Structure deliberately avoids a running-total column: each bad event shows only its OWN
+    extra cost on top of the normal year (the events are independent — they don't stack or
+    sum down a column). The baseline and the all-three-at-once worst case are stated as
+    their own framed rows so nothing reads as a column sum.
     """
     r = m.risk_scenarios(rent)
-    base = r["baseline"]
-    scen = [
-        ("Normal year (baseline)", 0.0, base),
-        ("+ A long vacancy (above normal turnover)", r["extra_vacancy"], base + r["extra_vacancy"]),
-        ("+ Non-paying tenant + eviction", r["eviction"], base + r["eviction"]),
-        (
-            "+ Major repair (roof/foundation), net of tax",
-            r["major_repair"],
-            base + r["major_repair"],
-        ),
+    events = [
+        ("A long vacancy (above normal turnover)", r["extra_vacancy"]),
+        ("A non-paying tenant + eviction", r["eviction"]),
+        ("A major repair (roof/foundation), net of tax", r["major_repair"]),
     ]
-    body = ""
-    for label, hit, total in scen:
-        hit_s = "<td>—</td>" if hit == 0 else f'<td class="num-bad">−{abs(hit):,.0f}</td>'
-        body += f'<tr><td>{label}</td>{hit_s}<td class="num-bad">−{abs(total):,.0f}</td></tr>'
+    body = (
+        f'<tr class="primary"><td>A <b>normal</b> year already costs</td>'
+        f'<td class="num-bad">−{abs(r["baseline"]):,.0f}</td></tr>'
+        f'<tr><td colspan="2" class="sub">Any <b>one</b> bad event that year adds, on its own '
+        f"(they don't stack):</td></tr>"
+    )
+    for label, hit in events:
+        body += f'<tr><td>&nbsp;&nbsp;{label}</td><td class="num-bad">−{abs(hit):,.0f}</td></tr>'
     body += (
-        f'<tr class="total"><td>Worst case: all three in one year</td>'
-        f'<td class="num-bad">−{abs(r["worst_extra"]):,.0f}</td>'
+        f'<tr class="total"><td>All <b>three</b> at once → that year costs</td>'
         f'<td class="num-bad">−{abs(r["worst_total"]):,.0f}</td></tr>'
     )
     return (
-        f"<thead><tr><th>Scenario (at ${rent / 1000:g}k/mo)</th><th>Extra cost of this event</th>"
-        f"<th>Total out of pocket that year</th></tr></thead><tbody>{body}</tbody>"
+        f"<thead><tr><th>At ${rent / 1000:g}k/mo</th><th>Out of pocket</th></tr></thead>"
+        f"<tbody>{body}</tbody>"
     )
 
 

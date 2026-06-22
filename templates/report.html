@@ -95,9 +95,9 @@
   <table id="be-cashflow-table-live">{{ cashflow_table_seed }}</table>
 
   <h4 style="margin:18px 0 4px;color:var(--accent);font-size:14px">What a bad year costs</h4>
-  <p class="sub" style="margin:0 0 6px">A normal year already costs cash out of pocket; each row adds <b>one</b> bad event to that
-  baseline, so the rows stand alone (they don't add together). The worst case stacks all three — individually uncommon
-  (probabilities in §4), so a deliberately pessimistic tail. Moves with the <b>rent</b> slider.</p>
+  <p class="sub" style="margin:0 0 6px">How much one rough year could cost out of pocket. The three bad events are independent and
+  individually uncommon (odds in §4); the last line is the deliberately pessimistic case where all three hit the same year.
+  Moves with the <b>rent</b> slider.</p>
   <table id="be-badyear-table-live">{{ badyear_table_seed }}</table>
   <p class="legend" style="margin-top:6px">The major repair is shown net of its tax recovery (it adds to basis). The reserve held
   for this is ${{ '{:,.0f}'.format(cash_reserve) }}.</p>
