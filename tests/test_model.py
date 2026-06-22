@@ -331,6 +331,37 @@ def test_tax_at_sale_signs_and_components():
     assert abs(st.cap_gains_tax - 400_000 * CAP_GAINS_RATE) < 1.0
     # recapture carries NIIT (consistent with cap gains): fed 25% + NIIT 3.8% + CA 13.3%.
     assert abs(st.recapture - 200_000 * assumptions.DEPREC_RECAPTURE_RATE) < 1.0
+
+
+def test_derive_rate_rejects_unamortizable_payment():
+    """A monthly_pi too small to amortize the balance over the term (≤ the principal-only
+    floor balance/n) has no positive note rate — the loader/Model must raise a CLEAR error
+    rather than crash with a ZeroDivisionError deep inside the bisection."""
+    from model import _derive_monthly_rate
+
+    with pytest.raises(ValueError, match="too small to amortize"):
+        _derive_monthly_rate(balance=50_000, pmt=4_739.86, n=6)  # 50000/6 = 8333 > pmt
+    # A consistent payment is accepted (sanity: the real Harold figures don't trip it).
+    r = _derive_monthly_rate(balance=1_102_902.48, pmt=4_739.86, n=306)
+    assert 0 < r < 0.02
+
+
+def test_cap_gains_tax_floored_when_exclusion_exceeds_gain():
+    """When the §121 exclusion is LARGER than the appreciation gain, the taxable gain floors
+    at 0 — the cap-gains tax is $0, never NEGATIVE (the excess exclusion can't become a tax
+    credit). Guards the `max(0.0, …)` floor on taxable_gain. (A gain of $100k fully sheltered
+    by the $250k exclusion: taxable gain 0, tax 0 — not (100k − 250k)·rate = a refund.)"""
+    st = tax_at_sale(
+        accumulated_deprec=0.0,
+        suspended_loss=0.0,
+        realized_amount=900_000,  # cost basis 800k → only $100k of appreciation gain
+        cost_basis=800_000,
+        treatment=Sec121.WITHIN_3YR,  # full $250k exclusion, > the $100k gain
+        years=3,
+    )
+    assert st.appreciation_gain == pytest.approx(100_000)
+    assert st.excluded_gain == pytest.approx(100_000)  # exclusion capped at the gain
+    assert st.cap_gains_tax == 0.0  # floored — NOT negative
     assert assumptions.DEPREC_RECAPTURE_RATE == pytest.approx(0.25 + 0.038 + 0.133)
 
 

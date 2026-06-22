@@ -134,7 +134,20 @@ def _derive_monthly_rate(balance: float, pmt: float, n: int) -> float:
     note rate. The standard amortization identity pmt = bal·r / (1 − (1+r)^−n) can't
     be solved for r in closed form, so we bisect on r in [0, 2%/mo] until the implied
     payment matches. 200 iterations converges far past cent precision.
+
+    Validates that the payment can actually amortize the loan: at r→0 the payment is the
+    principal-only floor balance/n, so a pmt at or below that has no positive note rate —
+    a sign of an inconsistent input (a stale/typo'd monthly_pi vs. mortgage_bal/
+    payments_left). Without this guard the bisection drives r toward 0, where (1+r)^−n
+    underflows to 1.0 and the denominator hits exactly 0 → an opaque ZeroDivisionError deep
+    in Model.__init__. A clear ValueError at the source is far easier to act on.
     """
+    if balance > 0 and pmt <= balance / n:
+        raise ValueError(
+            f"monthly_pi ({pmt:,.2f}) is too small to amortize mortgage_bal ({balance:,.2f}) "
+            f"over payments_left ({n}): it must exceed the principal-only floor "
+            f"{balance / n:,.2f}/mo. Check the property TOML for a stale or mistyped payment."
+        )
     lo, hi = 0.0, 0.02
     for _ in range(200):
         r = (lo + hi) / 2
@@ -235,6 +248,9 @@ def tax_at_sale(
     # already taxed as §1250 recapture). Equivalent to max(0, realized − cost_basis).
     appreciation_gain = max(0.0, realized_amount - cost_basis)
     excluded = excluded_gain(treatment, appreciation_gain, years)
+    # max(0,…) is defensive: excluded_gain already caps at min(CG_EXCLUSION, gain), so the
+    # difference is never negative in practice. The floor just guarantees a §121 exclusion
+    # can never turn into a tax CREDIT if that capping ever changed.
     taxable_gain = max(0.0, appreciation_gain - excluded)
     # CAP_GAINS_RATE bundles NIIT (3.8%). Applying it to the POST-exclusion gain is
     # correct, NOT a bug: §121-excluded gain is excluded from gross income, and NIIT
