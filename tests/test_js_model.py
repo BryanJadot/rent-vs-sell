@@ -46,10 +46,14 @@ const out = input.points.map((pt) => {
     P, pt.rent_level, pt.years, pt.appr, pt.market, 'full_rental', pt.rent_growth
   ).netWorth;
   const sell = engine.investNetWorth(P, engine.calcSell(P).netAfterTax, pt.years, pt.market);
+  // Hold-then-invest: hold until sell_year, then invest to the horizon (the live chart/table).
+  const hti = engine.holdThenInvestNetWorth(
+    P, pt.rent_level, pt.sell_year, pt.years, pt.appr, pt.market, 'full_rental', pt.rent_growth
+  );
   // Bad-year risk + year-1 out-of-pocket at this rent (the live §2 tables read these).
   const oop = engine.oopBreakdown(P, pt.rent_level).net;
   const risk = engine.riskScenarios(P, pt.rent_level);
-  return { hold, sell, oop, worst_total: risk.worst_total };
+  return { hold, sell, hti, oop, worst_total: risk.worst_total };
 });
 process.stdout.write(JSON.stringify(out));
 """
@@ -71,6 +75,7 @@ def _points(primary_rent: float):
                             "market": mk,
                             "years": yr,
                             "rent_level": primary_rent,
+                            "sell_year": 10,  # the seed; a dedicated sweep varies it below
                         }
                     )
     # Rent-level sweep (at the base appr/market/growth, a few horizons) — exercises the
@@ -78,7 +83,28 @@ def _points(primary_rent: float):
     for rl in RENT_LEVELS:
         for yr in (1, 10, 30):
             pts.append(
-                {"appr": 0.0485, "rent_growth": 0.03, "market": 0.07, "years": yr, "rent_level": rl}
+                {
+                    "appr": 0.0485,
+                    "rent_growth": 0.03,
+                    "market": 0.07,
+                    "years": yr,
+                    "rent_level": rl,
+                    "sell_year": 10,
+                }
+            )
+    # Sell-year sweep — exercises hold-then-invest across S (incl. S=0, S past horizon, and
+    # horizons straddling S) at the base case.
+    for s in (0, 5, 10, 30):
+        for yr in (1, 5, 10, 15, 30):
+            pts.append(
+                {
+                    "appr": 0.0485,
+                    "rent_growth": 0.03,
+                    "market": 0.07,
+                    "years": yr,
+                    "rent_level": primary_rent,
+                    "sell_year": s,
+                }
             )
     return pts
 
@@ -124,11 +150,21 @@ def test_js_matches_python_within_one_dollar(prop_path):
             sec121=Sec121.FULL_RENTAL,
         ).net_worth
         py_sell = m.invest_net_worth(np_, pt["years"], pt["market"])
+        py_hti = m_rg.hold_then_invest_net_worth(
+            pt["rent_level"],
+            pt["sell_year"],
+            pt["years"],
+            pt["appr"],
+            opp_rate=pt["market"],
+            sec121=Sec121.FULL_RENTAL,
+        )
         py_oop = m.oop_breakdown(pt["rent_level"]).net
         py_worst = m.risk_scenarios(pt["rent_level"])["worst_total"]
 
         if abs(py_hold - jr["hold"]) > 1.0:
             mismatches.append(f"HOLD {pt}: py={py_hold:.2f} js={jr['hold']:.2f}")
+        if abs(py_hti - jr["hti"]) > 1.0:
+            mismatches.append(f"HTI {pt}: py={py_hti:.2f} js={jr['hti']:.2f}")
         if abs(py_sell - jr["sell"]) > 1.0:
             mismatches.append(f"SELL {pt}: py={py_sell:.2f} js={jr['sell']:.2f}")
         if abs(py_oop - jr["oop"]) > 1.0:

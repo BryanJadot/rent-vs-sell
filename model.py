@@ -703,6 +703,49 @@ class Model:
         np_ = self.calc_sell().net_after_tax  # invest AFTER the closing cap-gains tax
         return max(self.invest_net_worth(np_, years, r) for r in INVEST_RATES)
 
+    def hold_then_invest_net_worth(
+        self,
+        monthly_rent: float,
+        sell_year: int,
+        horizon: int,
+        appr: float,
+        opp_rate: float = PRIMARY_INVEST,
+        sec121: Sec121 = Sec121.FULL_RENTAL,
+    ) -> float:
+        """Wealth at `horizon` years if you HOLD (rent it out) until `sell_year`, sell, then
+        invest the proceeds at the market rate for the remaining years.
+
+        This puts the HOLD path on the SAME footing as SELL-now as a function of CALENDAR
+        time: both are "your wealth in year t under one rule — invest at the market rate once
+        your money is liquid." Before sell_year you're still holding (the value IS
+        hold_net_worth at that point); at/after sell_year you've converted to cash and it
+        compounds like the sell side.
+
+        hold_net_worth(sell_year) is already AFTER-tax (the year-`sell_year` sale's costs and
+        cap-gains/recapture are paid in it), so the post-sale leg taxes only the INCREMENTAL
+        market gains earned from sell_year→horizon — exactly invest_net_worth's
+        grow-pre-tax-tax-the-gain-once rule, identical to how SELL-now's proceeds are taxed.
+        So Hold-sold-at-S and Sell-now are directly comparable (the reader can stack them).
+
+        At sell_year == 0 this reduces to investing the just-sold hold value (≡ the SELL-now
+        construction at the same appreciation-independent proceeds — a built-in sanity check).
+        When the horizon is at or BEFORE the sell year you haven't sold yet, so it's just the
+        hold value AT THE HORIZON (still a rental). A negative net worth (underwater early)
+        compounds like any principal in invest_net_worth (a shortfall carried at the market rate).
+        """
+        # Before (or at) the sell year you're still holding — the value is the hold value at
+        # the horizon, not yet converted to cash.
+        if horizon <= sell_year:
+            return self.hold_net_worth(
+                monthly_rent, horizon, appr, opp_rate=opp_rate, sec121=sec121
+            ).net_worth
+        # Sold at sell_year (value already after-tax), then invested to the horizon — only the
+        # incremental market gains are taxed again (invest_net_worth's grow-then-tax-once rule).
+        nw_at_sale = self.hold_net_worth(
+            monthly_rent, sell_year, appr, opp_rate=opp_rate, sec121=sec121
+        ).net_worth
+        return self.invest_net_worth(nw_at_sale, horizon - sell_year, opp_rate)
+
     def break_even_appreciation(self, years: int, opp_rate: float = PRIMARY_INVEST) -> float:
         """The home-appreciation rate at which HOLD net worth equals SELL net worth at
         `years`, with BOTH sides compounding at the same `opp_rate` (so the only thing
@@ -899,19 +942,20 @@ class Model:
 
         hz = max(H)
 
-        # Wealth-over-time chart series: HOLD and SELL net worth as functions of the holding
-        # period (years), both at the base case (primary appreciation/rent/opp rate). Unlike
-        # the old appreciation-sweep, BOTH curves move with the three slider axes in the live
-        # version (appreciation, rent growth, market return) — so dragging any of them shifts
-        # where they cross. The crossover year is where HOLD first overtakes/falls behind
-        # SELL. Data only — render plots these points; it labels no side as "winning".
+        # Wealth-over-CALENDAR-TIME chart series: both curves are "your wealth in year t" under
+        # ONE rule (invest at the market rate once liquid). SELL sold at year 0; HOLD holds
+        # until the chosen sell year then invests the proceeds at the market rate (see
+        # hold_then_invest_net_worth). Both move with all slider axes (appreciation, rent
+        # growth, market return) AND the sell-year slider — so dragging any shifts the crossing.
+        # Data only — render plots these points; it labels no side as "winning".
         #
         # The mortgage pays off at payments_left/12 years; past that the HOLD curve bends
-        # (P&I drops to 0). We surface the payoff year so the chart can mark it, explaining
-        # the kink rather than leaving it mysterious. Derived from payments_left — no magic.
+        # (P&I drops to 0). We surface the payoff year so the chart can mark it. The sell year
+        # is also surfaced so the chart can mark where HOLD switches from property to market.
+        sell_year = WORKED_EXAMPLE_HORIZON  # the seed/default S (the slider drives it live)
         year_grid = list(range(0, hz + 1))  # 0..hz inclusive, yearly steps
         chart_hold = [
-            self.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION).net_worth
+            self.hold_then_invest_net_worth(p.primary_rent, sell_year, y, PRIMARY_APPRECIATION)
             for y in year_grid
         ]
         # SELL at the SINGLE primary market rate (not best_sell's max-over-INVEST_RATES):
@@ -938,6 +982,7 @@ class Model:
             "sell": chart_sell,
             "crossover_year": crossover_year,
             "payoff_year": payoff_year,
+            "sell_year": sell_year,
         }
 
         # Per-year CASH-FLOW chart: the HOLD path's actual economic cash flow each year (rent

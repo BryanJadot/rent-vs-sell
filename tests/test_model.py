@@ -196,13 +196,43 @@ def test_break_even_chart_is_wealth_over_time(m):
     grid, hold, sell = c["year_grid"], c["hold"], c["sell"]
     assert grid[0] == 0 and grid[-1] == c["horizon"]
     assert len(hold) == len(grid) == len(sell)
-    # Each HOLD point matches the model at that year (the chart is just a drawing of them).
-    assert hold[-1] == m.hold_net_worth(m.p.primary_rent, c["horizon"], 0.0485).net_worth
+    # Each HOLD point is hold-until-sell_year-then-invest at that horizon (the chart is just a
+    # drawing of them). At the sell year itself there's no post-sale leg, so it equals the
+    # plain hold value there.
+    s = c["sell_year"]
+    assert hold[s] == m.hold_net_worth(m.p.primary_rent, s, 0.0485).net_worth
+    assert hold[-1] == m.hold_then_invest_net_worth(m.p.primary_rent, s, c["horizon"], 0.0485)
     # Payoff year = loan months / 12; sits within the swept domain.
     assert c["payoff_year"] == m.p.payments_left / 12
     # Crossover, if present, is a year index in range; if None the gap never changes sign.
     if c["crossover_year"] is not None:
         assert grid[0] < c["crossover_year"] <= grid[-1]
+
+
+def test_hold_then_invest_boundaries(m):
+    """hold_then_invest_net_worth must reduce correctly at its boundaries:
+    - horizon <= sell_year: still holding → equals plain hold_net_worth at the horizon.
+    - sell_year == 0: equals investing the just-sold (year-0) hold value at the market rate.
+    - horizon > sell_year: equals hold value at sell_year, then invest_net_worth to horizon.
+    """
+    r = m.p.primary_rent
+    rate = assumptions.PRIMARY_INVEST
+    # Before the sell year — still a rental at the horizon.
+    assert m.hold_then_invest_net_worth(r, 10, 5, 0.0485) == pytest.approx(
+        m.hold_net_worth(r, 5, 0.0485).net_worth
+    )
+    # At the sell year — no post-sale leg.
+    assert m.hold_then_invest_net_worth(r, 10, 10, 0.0485) == pytest.approx(
+        m.hold_net_worth(r, 10, 0.0485).net_worth
+    )
+    # sell_year == 0 — sell immediately, invest the year-0 hold value.
+    expected0 = m.invest_net_worth(m.hold_net_worth(r, 0, 0.0485).net_worth, 15, rate)
+    assert m.hold_then_invest_net_worth(r, 0, 15, 0.0485) == pytest.approx(expected0)
+    # After the sell year — hold value at S then invested for (horizon − S).
+    nw_at_s = m.hold_net_worth(r, 10, 0.0485).net_worth
+    assert m.hold_then_invest_net_worth(r, 10, 30, 0.0485) == pytest.approx(
+        m.invest_net_worth(nw_at_s, 20, rate)
+    )
 
 
 def test_two_properties_are_independent():

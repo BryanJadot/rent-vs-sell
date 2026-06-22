@@ -281,6 +281,21 @@ function bestSell(P, years) {
   return Math.max(...P.invest_rates.map((r) => investNetWorth(P, np, years, r)));
 }
 
+function holdThenInvestNetWorth(P, monthlyRent, sellYear, horizon, appr, oppRate, sec121, rentGrowth) {
+  // Mirror of Model.hold_then_invest_net_worth: hold (rent) until sellYear, then invest the
+  // proceeds at the market rate to the horizon — wealth-over-time on the same footing as SELL.
+  oppRate = oppRate === undefined ? P.primary_invest : oppRate;
+  sec121 = sec121 || "full_rental";
+  rentGrowth = rentGrowth === undefined ? P.rent_growth : rentGrowth;
+  // At/before the sell year you're still holding — hold value at the horizon, not yet cash.
+  if (horizon <= sellYear) {
+    return holdNetWorth(P, monthlyRent, horizon, appr, oppRate, sec121, rentGrowth).netWorth;
+  }
+  // Sold at sellYear (already after-tax), then invested — only new market gains taxed again.
+  const nwAtSale = holdNetWorth(P, monthlyRent, sellYear, appr, oppRate, sec121, rentGrowth).netWorth;
+  return investNetWorth(P, nwAtSale, horizon - sellYear, oppRate);
+}
+
 function breakEvenAppreciation(P, years, oppRate, rentGrowth) {
   // Mirror of Model.break_even_appreciation — bisect appr s.t. HOLD ties SELL, both at oppRate.
   oppRate = oppRate === undefined ? P.primary_invest : oppRate;
@@ -312,6 +327,7 @@ if (typeof module !== "undefined" && module.exports) {
     investNetWorth,
     bestSell,
     breakEvenAppreciation,
+    holdThenInvestNetWorth,
     oopBreakdown,
     riskScenarios,
   };
@@ -332,13 +348,14 @@ if (typeof document !== "undefined") {
   const fmtDollars = (v) =>
     (v < 0 ? "−$" : "$") + Math.abs(Math.round(v)).toLocaleString("en-US");
 
-  // Hold & Sell net worth over the holding period at the current slider values, for every
-  // year 0..horizon. BOTH curves move with all three sliders (so dragging any of them
-  // shifts the crossing). Mirror of model.compute()'s break_even_chart construction.
-  function timeSeries(appr, rentGrowth, marketRate, rentLevel) {
+  // Hold & Sell wealth over CALENDAR time at the current slider values, for every year
+  // 0..horizon. HOLD holds until sellYear then invests at the market rate; SELL sold at
+  // year 0. Both move with every slider (incl. sell-year). Mirror of compute()'s
+  // break_even_chart construction.
+  function timeSeries(appr, rentGrowth, marketRate, rentLevel, sellYear) {
     const grid = C.yearGrid;
     const hold = grid.map(
-      (y) => holdNetWorth(P, rentLevel, y, appr, marketRate, "full_rental", rentGrowth).netWorth
+      (y) => holdThenInvestNetWorth(P, rentLevel, sellYear, y, appr, marketRate, "full_rental", rentGrowth)
     );
     // SELL at the chosen market return — best of the invest scenarios is not used here
     // because the slider IS the market return; a single rate keeps the line interpretable.
@@ -362,8 +379,8 @@ if (typeof document !== "undefined") {
 
   // Mirror of render._break_even_svg coordinate mapping (time axis). Pure string-building;
   // the model numbers come from the engine above.
-  function buildSvg(appr, rentGrowth, marketRate, rentLevel) {
-    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate, rentLevel);
+  function buildSvg(appr, rentGrowth, marketRate, rentLevel, sellYear) {
+    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate, rentLevel, sellYear);
     const payoff = C.payoffYear;
 
     const W = C.W, Hh = C.Hh;
@@ -415,6 +432,16 @@ if (typeof document !== "undefined") {
       parts.push(`<line x1="${xx.toFixed(1)}" y1="${y0}" x2="${xx.toFixed(1)}" y2="${y1}" stroke="#cdd6e5" stroke-dasharray="3 3"/>`);
       parts.push(
         `<text x="${xx.toFixed(1)}" y="${(y1 - 10).toFixed(1)}" text-anchor="middle" fill="#90a">loan paid off ~${payoff.toFixed(0)}y</text>`
+      );
+    }
+
+    // Sell-year tick — where HOLD switches from property to invested cash (the curve bends).
+    // Drawn distinctly (solid-ish accent) so it reads as the chosen action, not a reference.
+    if (sellYear > axMin && sellYear < axMax) {
+      const xx = px(sellYear);
+      parts.push(`<line x1="${xx.toFixed(1)}" y1="${y0}" x2="${xx.toFixed(1)}" y2="${y1}" stroke="#c9a0d8" stroke-dasharray="2 2"/>`);
+      parts.push(
+        `<text x="${xx.toFixed(1)}" y="${(y0 + 32).toFixed(1)}" text-anchor="middle" fill="#a05fc0">sold yr ${sellYear}</text>`
       );
     }
 
@@ -506,8 +533,8 @@ if (typeof document !== "undefined") {
 
   // Neutral readout: figures only — gap at the longest horizon + crossover year.
   // No "you should"/"better"/"win" (CLAUDE.md rule 2).
-  function buildReadout(appr, rentGrowth, marketRate, rentLevel) {
-    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate, rentLevel);
+  function buildReadout(appr, rentGrowth, marketRate, rentLevel, sellYear) {
+    const { grid, hold, sell, crossover } = timeSeries(appr, rentGrowth, marketRate, rentLevel, sellYear);
     const hz = grid[grid.length - 1];
     const holdHz = hold[hold.length - 1];
     const sellHz = sell[sell.length - 1];
@@ -527,32 +554,29 @@ if (typeof document !== "undefined") {
   // Live table: Hold and Sell net worth at each reported horizon, at the current slider
   // values, plus their gap. Figures only (Rule 2) — the gap is a signed magnitude with no
   // good/bad coloring, since "which side is larger" is not a verdict this report makes.
-  function buildHorizonTable(appr, rentGrowth, marketRate, rentLevel) {
+  function buildHorizonTable(appr, rentGrowth, marketRate, rentLevel, sellYear) {
     const horizons = P.horizons;
     const head = horizons.map((y) => `<th>${y}-yr</th>`).join("");
-    const holdCells = horizons
-      .map((y) => {
-        const v = holdNetWorth(P, rentLevel, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
-        return `<td>${fmtDollars(v)}</td>`;
-      })
-      .join("");
+    // HOLD = hold until the chosen sell year, then invest the proceeds — same wealth-over-time
+    // basis as the chart, so the table and chart tell one coherent story.
+    const holdAt = (y) =>
+      holdThenInvestNetWorth(P, rentLevel, sellYear, y, appr, marketRate, "full_rental", rentGrowth);
+    const holdCells = horizons.map((y) => `<td>${fmtDollars(holdAt(y))}</td>`).join("");
     const sellCells = horizons
       .map((y) => `<td>${fmtDollars(investNetWorth(P, calcSell(P).netAfterTax, y, marketRate))}</td>`)
       .join("");
     const gapCells = horizons
       .map((y) => {
-        const h = holdNetWorth(P, rentLevel, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
-        const s = investNetWorth(P, calcSell(P).netAfterTax, y, marketRate);
-        const d = h - s;
+        const d = holdAt(y) - investNetWorth(P, calcSell(P).netAfterTax, y, marketRate);
         // signed magnitude, neutral: "+" = Hold larger, "−" = Sell larger (a label, not a judgment)
         const sign = d >= 0 ? "+" : "−";
         return `<td>${sign}$${Math.abs(Math.round(d)).toLocaleString("en-US")}</td>`;
       })
       .join("");
     return (
-      `<thead><tr><th>At your assumptions</th>${head}</tr></thead>` +
+      `<thead><tr><th>If you sell in year ${sellYear}</th>${head}</tr></thead>` +
       `<tbody>` +
-      `<tr class="primary"><td>Hold (keep &amp; rent)</td>${holdCells}</tr>` +
+      `<tr class="primary"><td>Hold (keep &amp; rent, then invest)</td>${holdCells}</tr>` +
       `<tr class="sell"><td>Sell now + invest</td>${sellCells}</tr>` +
       `<tr class="total"><td>Hold − Sell</td>${gapCells}</tr>` +
       `</tbody>`
@@ -633,11 +657,13 @@ if (typeof document !== "undefined") {
     const rentGrowth = +document.getElementById("slider-rent").value / 100;
     const marketRate = +document.getElementById("slider-market").value / 100;
     const rentLevel = +document.getElementById("slider-rentlevel").value;
+    const sellYear = +document.getElementById("slider-sellyear").value;
 
     document.getElementById("val-appr").textContent = (appr * 100).toFixed(1).replace(/\.0$/, "") + "%";
     document.getElementById("val-rent").textContent = (rentGrowth * 100).toFixed(1).replace(/\.0$/, "") + "%";
     document.getElementById("val-market").textContent = (marketRate * 100).toFixed(1).replace(/\.0$/, "") + "%";
     document.getElementById("val-rentlevel").textContent = "$" + rentLevel.toLocaleString("en-US") + "/mo";
+    document.getElementById("val-sellyear").textContent = "yr " + sellYear;
 
     // Every live element is keyed by id; some live in §1, some in §2 — the global slider
     // bar drives them all wherever they sit. Each `if` guards against an absent element.
@@ -645,16 +671,16 @@ if (typeof document !== "undefined") {
       const el = document.getElementById(id);
       if (el) el.innerHTML = html;
     };
-    setHtml("be-table-live", buildHorizonTable(appr, rentGrowth, marketRate, rentLevel));
-    setHtml("be-chart-live", buildSvg(appr, rentGrowth, marketRate, rentLevel));
-    setHtml("be-readout", buildReadout(appr, rentGrowth, marketRate, rentLevel));
+    setHtml("be-table-live", buildHorizonTable(appr, rentGrowth, marketRate, rentLevel, sellYear));
+    setHtml("be-chart-live", buildSvg(appr, rentGrowth, marketRate, rentLevel, sellYear));
+    setHtml("be-readout", buildReadout(appr, rentGrowth, marketRate, rentLevel, sellYear));
     setHtml("cashflow-chart-live", buildCashflowSvg(rentGrowth, rentLevel));
     setHtml("be-cashflow-table-live", buildCashflowTable(rentLevel));
     setHtml("be-badyear-table-live", buildBadYearTable(rentLevel));
   }
 
   function init() {
-    ["slider-appr", "slider-rent", "slider-market", "slider-rentlevel"].forEach((id) => {
+    ["slider-appr", "slider-rent", "slider-market", "slider-rentlevel", "slider-sellyear"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", redraw);
     });

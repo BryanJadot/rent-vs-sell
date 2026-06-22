@@ -96,6 +96,7 @@ def _break_even_svg(chart: dict) -> str:
     sell = chart["sell"]
     crossover = chart["crossover_year"]
     payoff = chart["payoff_year"]
+    sell_year = chart["sell_year"]
 
     # Plot box (viewBox units) — geometry lives in the module CHART_* constants so the live
     # JS redraw uses the identical box (CLAUDE.md rule 3).
@@ -166,6 +167,19 @@ def _break_even_svg(chart: dict) -> str:
         parts.append(
             f'<text x="{xx:.1f}" y="{y1 - 10:.1f}" text-anchor="middle" fill="#90a">'
             f"loan paid off ~{payoff:.0f}y</text>"
+        )
+
+    # Sell-year tick — where HOLD switches from property to invested cash (the curve bends).
+    # Drawn distinctly from the payoff reference so it reads as the chosen action.
+    if ax_min < sell_year < ax_max:
+        xx = px(sell_year)
+        parts.append(
+            f'<line x1="{xx:.1f}" y1="{y0}" x2="{xx:.1f}" y2="{y1}" '
+            'stroke="#c9a0d8" stroke-dasharray="2 2"/>'
+        )
+        parts.append(
+            f'<text x="{xx:.1f}" y="{y0 + 32:.1f}" text-anchor="middle" fill="#a05fc0">'
+            f"sold yr {sell_year}</text>"
         )
 
     # The two data series (both curves)
@@ -392,27 +406,30 @@ def build_context(m: Model) -> dict:
     be_chart_svg = _break_even_svg(computed["break_even_chart"])
 
     # Server-rendered seed for the live horizon table, at the base-case slider defaults
-    # (PRIMARY_APPRECIATION / RENT_GROWTH / PRIMARY_INVEST). Identical layout to the JS
-    # buildHorizonTable so the static fallback (no-JS / print / first paint) matches what
-    # the slider shows. Numbers come from the model; render only arranges them.
+    # (PRIMARY_APPRECIATION / RENT_GROWTH / PRIMARY_INVEST / default sell year). Identical
+    # layout to the JS buildHorizonTable so the static fallback (no-JS / print / first paint)
+    # matches what the slider shows. HOLD = hold-then-invest at the default sell year (same
+    # wealth-over-time basis as the chart). Numbers come from the model; render arranges them.
+    seed_sell_year = computed["break_even_chart"]["sell_year"]
     be_tbl_head = "".join(f"<th>{y}-yr</th>" for y in H)
-    be_tbl_hold = "".join(
-        f"<td>{m.hold_net_worth(p.primary_rent, y, PRIMARY_APPRECIATION, opp_rate=PRIMARY_INVEST).net_worth:,.0f}</td>"
-        for y in H
-    )
+
+    def _seed_hold(y):
+        return m.hold_then_invest_net_worth(
+            p.primary_rent, seed_sell_year, y, PRIMARY_APPRECIATION, opp_rate=PRIMARY_INVEST
+        )
+
+    be_tbl_hold = "".join(f"<td>{_seed_hold(y):,.0f}</td>" for y in H)
     be_tbl_sell = "".join(
         f"<td>{m.invest_net_worth(sell.net_after_tax, y, PRIMARY_INVEST):,.0f}</td>" for y in H
     )
     be_tbl_gap = ""
     for y in H:
-        d = m.hold_net_worth(
-            p.primary_rent, y, PRIMARY_APPRECIATION, opp_rate=PRIMARY_INVEST
-        ).net_worth - m.invest_net_worth(sell.net_after_tax, y, PRIMARY_INVEST)
+        d = _seed_hold(y) - m.invest_net_worth(sell.net_after_tax, y, PRIMARY_INVEST)
         sign = "+" if d >= 0 else "−"
         be_tbl_gap += f"<td>{sign}{abs(d):,.0f}</td>"
     be_table_seed = (
-        f"<thead><tr><th>At your assumptions</th>{be_tbl_head}</tr></thead>"
-        f'<tbody><tr class="primary"><td>Hold (keep &amp; rent)</td>{be_tbl_hold}</tr>'
+        f"<thead><tr><th>If you sell in year {seed_sell_year}</th>{be_tbl_head}</tr></thead>"
+        f'<tbody><tr class="primary"><td>Hold (keep &amp; rent, then invest)</td>{be_tbl_hold}</tr>'
         f'<tr class="sell"><td>Sell now + invest</td>{be_tbl_sell}</tr>'
         f'<tr class="total"><td>Hold − Sell</td>{be_tbl_gap}</tr></tbody>'
     )
@@ -575,6 +592,10 @@ def build_context(m: Model) -> dict:
     slider_appr_min, slider_appr_max = 0, 7
     slider_rent_min, slider_rent_max = 1, 6
     slider_market_min, slider_market_max = 4, 10
+    # Year-sold slider: 0..longest horizon, step 1 yr; default = the seed sell year.
+    slider_sellyear_min = 0
+    slider_sellyear_max = max(H)
+    slider_sellyear_default = computed["break_even_chart"]["sell_year"]
 
     # Gain/loss flag for sale-side labels (factual, drives wording not judgment).
     sells_at_loss = sell.capital_gain < 0
@@ -634,6 +655,9 @@ def build_context(m: Model) -> dict:
         "slider_rent_max": slider_rent_max,
         "slider_market_min": slider_market_min,
         "slider_market_max": slider_market_max,
+        "slider_sellyear_min": slider_sellyear_min,
+        "slider_sellyear_max": slider_sellyear_max,
+        "slider_sellyear_default": slider_sellyear_default,
         "assumption_rows": M(assumption_rows),
     }
 

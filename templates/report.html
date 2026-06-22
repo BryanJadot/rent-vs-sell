@@ -17,21 +17,25 @@
         <input type="range" id="slider-appr" min="{{ slider_appr_min }}" max="{{ slider_appr_max }}" step="{{ slider_pct_step }}" value="{{ slider_appr_default }}"></label>
       <label>Rent growth <span class="slider-val" id="val-rent">{{ '%g'|format(slider_rent_default) }}%</span>
         <input type="range" id="slider-rent" min="{{ slider_rent_min }}" max="{{ slider_rent_max }}" step="{{ slider_pct_step }}" value="{{ slider_rent_default }}"></label>
-      <label>Market return <span class="sub" style="font-weight:400">(stocks)</span> <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
+      <label>Market return <span class="slider-val" id="val-market">{{ '%g'|format(slider_market_default) }}%</span>
         <input type="range" id="slider-market" min="{{ slider_market_min }}" max="{{ slider_market_max }}" step="{{ slider_pct_step }}" value="{{ slider_market_default }}"></label>
       <label>Initial rent <span class="slider-val" id="val-rentlevel">${{ '{:,.0f}'.format(slider_rentlevel_default) }}/mo</span>
         <input type="range" id="slider-rentlevel" min="{{ slider_rentlevel_min }}" max="{{ slider_rentlevel_max }}"
           step="{{ slider_rentlevel_step }}" value="{{ slider_rentlevel_default }}"></label>
+      <label>Year sold <span class="slider-val" id="val-sellyear">yr {{ slider_sellyear_default }}</span>
+        <input type="range" id="slider-sellyear" min="{{ slider_sellyear_min }}" max="{{ slider_sellyear_max }}"
+          step="1" value="{{ slider_sellyear_default }}"></label>
     </div>
     <noscript><p class="legend" style="margin:6px 0 0"><b>Interactive controls need JavaScript.</b> The charts and tables below
     show the same data at fixed assumption points.</p></noscript>
   </div>
 
   <!-- ===== 1. THE MONEY ===== -->
-  <h2>1. The money — what each path is worth</h2>
-  <p class="sub">The total wealth each path leaves you with, after all costs and taxes on both sides. Drag the sliders to test a
-  different appreciation rate, rent, rent-growth, or market return — the chart and table update live. (Figures only — this draws
-  no conclusion about which to pick.)</p>
+  <h2>1. The money — your wealth over time</h2>
+  <p class="sub">Both lines are your <b>total wealth in each future year</b>, after all costs and taxes — apples to apples,
+  because once your money is liquid both paths just grow at the market return. <b>Sell now</b> sells today and invests the
+  proceeds. <b>Hold</b> keeps renting until the <b>year sold</b> you pick (the slider), then sells and invests too — so it tracks
+  the property until then and the market after. Drag any slider to update both. (Figures only — no conclusion about which to pick.)</p>
   <div class="card" style="margin:10px 0">
     <!-- The live readout (plain-language headline) sits ABOVE the chart so it's the first
          thing read, not a footnote. -->
@@ -39,14 +43,14 @@
 
     <!-- Live net-worth chart (JS swaps its contents). Server-seeded for no-JS / print. -->
     <div id="be-chart-live">{{ be_chart_svg }}</div>
-    <p class="legend" style="margin-top:8px">Two paths' total wealth: <b>Hold</b> (blue, keep &amp; rent, then sell) vs.
-    <b>Sell now</b> (green, sell today and invest the proceeds). The black dot marks where they cross; the dashed tick is the year
-    the mortgage is paid off.</p>
+    <p class="legend" style="margin-top:8px"><b>Hold</b> (blue) vs. <b>Sell now</b> (green). The purple dashed tick is the
+    <b>year sold</b> — the Hold line bends there as it switches from the property to invested cash. The gray dashed tick is the year
+    the mortgage is paid off; the black dot marks where the two paths cross.</p>
 
     <!-- Live table — exact figures behind the chart. -->
     <table id="be-table-live" style="margin-top:14px">{{ be_table_seed }}</table>
-    <p class="legend" style="margin:0">Exact figures at each horizon. "Hold − Sell" is the difference (＋ = the Hold figure is
-    larger, − = Sell).</p>
+    <p class="legend" style="margin:0">Exact figures at each future year, for the year-sold you picked. "Hold − Sell" is the
+    difference (＋ = the Hold figure is larger, − = Sell).</p>
   </div>
   <p class="legend">Once it's a pure rental you lose the home-sale tax break that shields the first
   ${{ '{:g}'.format(cg_exclusion/1000) }}k of gain (the <b>§121 exclusion</b>, explained in §3). Selling
