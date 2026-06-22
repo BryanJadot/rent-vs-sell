@@ -244,11 +244,12 @@
         <tr class="total"><td>= Net cash proceeds</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_proceeds) }}</td><td></td></tr>
         {% if sells_at_loss %}
         <tr><td>Capital gain/loss</td><td class="num-bad">−{{ '{:,.0f}'.format(sell.capital_gain|abs) }}</td><td class="sub">a loss: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis</td></tr>
-        <tr><td>Capital gains tax</td><td>${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">$0 — no tax on a loss</td></tr>
+        <tr><td>− Capital gains tax</td><td>${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">$0 — no tax on a loss</td></tr>
         {% else %}
         <tr><td>Capital gain/loss</td><td class="num-good">+{{ '{:,.0f}'.format(sell.capital_gain) }}</td><td class="sub">a gain: amount realized (net of costs) vs. ${{ '%.2f'|format(cost_basis/1e6) }}M basis, less §{{ '{:g}'.format(cg_exclusion/1000) }}k exclusion if eligible</td></tr>
-        <tr><td>Capital gains tax</td><td class="num-bad">−${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on the taxable gain</td></tr>
+        <tr><td>− Capital gains tax</td><td class="num-bad">−${{ '{:,.0f}'.format(sell.tax) }}</td><td class="sub">{{ '%.1f'|format(cap_gains_rate*100) }}% on the taxable gain</td></tr>
         {% endif %}
+        <tr class="total"><td>= Amount invested (after tax)</td><td class="num-good">+{{ '{:,.0f}'.format(sell.net_after_tax) }}</td><td class="sub">this is what compounds on the sell side</td></tr>
       </tbody>
     </table>
   </details>

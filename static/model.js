@@ -200,13 +200,17 @@ function taxAtSale(P, accumulatedDeprec, suspendedLoss, realizedAmount, costBasi
 }
 
 function calcSell(P) {
-  // Mirror of Model.calc_sell → net proceeds for the sell-today side.
+  // Mirror of Model.calc_sell. netAfterTax (proceeds − closing cap-gains tax) is what the
+  // SELL side actually invests — symmetric with the hold path paying its cap-gains tax at
+  // the future sale. (On a loss, tax is 0 → netAfterTax === netProceeds.)
   const broker = P.home_value * P.broker_rate;
   const transfer = P.home_value * P.transfer_tax;
   const title = P.home_value * P.title_escrow;
   const total = broker + transfer + title;
   const net = P.home_value - total - P.mortgage_bal;
-  return { netProceeds: net };
+  const gain = P.home_value - total - P.cost_basis;
+  const tax = gain <= P.cg_exclusion ? 0.0 : (gain - P.cg_exclusion) * P.cap_gains_rate;
+  return { netProceeds: net, tax, netAfterTax: net - tax };
 }
 
 function holdNetWorth(P, monthlyRent, years, appr, oppRate, sec121, rentGrowth) {
@@ -245,7 +249,7 @@ function investNetWorth(P, netProceeds, years, rate) {
 
 function bestSell(P, years) {
   // Mirror of Model.best_sell — best of the invest-rate scenarios.
-  const np = calcSell(P).netProceeds;
+  const np = calcSell(P).netAfterTax;
   return Math.max(...P.invest_rates.map((r) => investNetWorth(P, np, years, r)));
 }
 
@@ -253,7 +257,7 @@ function breakEvenAppreciation(P, years, oppRate, rentGrowth) {
   // Mirror of Model.break_even_appreciation — bisect appr s.t. HOLD ties SELL, both at oppRate.
   oppRate = oppRate === undefined ? P.primary_invest : oppRate;
   rentGrowth = rentGrowth === undefined ? P.rent_growth : rentGrowth;
-  const target = investNetWorth(P, calcSell(P).netProceeds, years, oppRate);
+  const target = investNetWorth(P, calcSell(P).netAfterTax, years, oppRate);
   let lo = -0.1;
   let hi = 0.25;
   for (let i = 0; i < 100; i++) {
@@ -308,7 +312,7 @@ if (typeof document !== "undefined") {
     );
     // SELL at the chosen market return — best of the invest scenarios is not used here
     // because the slider IS the market return; a single rate keeps the line interpretable.
-    const sell = grid.map((y) => investNetWorth(P, calcSell(P).netProceeds, y, marketRate));
+    const sell = grid.map((y) => investNetWorth(P, calcSell(P).netAfterTax, y, marketRate));
     // Crossover year: first year whose sign(hold − sell) differs from year 1's (mirror of
     // the Python). Neutral fact (when the lines meet), not a verdict.
     const diffs = hold.map((h, i) => h - sell[i]);
@@ -503,12 +507,12 @@ if (typeof document !== "undefined") {
       })
       .join("");
     const sellCells = horizons
-      .map((y) => `<td>${fmtDollars(investNetWorth(P, calcSell(P).netProceeds, y, marketRate))}</td>`)
+      .map((y) => `<td>${fmtDollars(investNetWorth(P, calcSell(P).netAfterTax, y, marketRate))}</td>`)
       .join("");
     const gapCells = horizons
       .map((y) => {
         const h = holdNetWorth(P, P.primary_rent, y, appr, marketRate, "full_rental", rentGrowth).netWorth;
-        const s = investNetWorth(P, calcSell(P).netProceeds, y, marketRate);
+        const s = investNetWorth(P, calcSell(P).netAfterTax, y, marketRate);
         const d = h - s;
         // signed magnitude, neutral: "+" = Hold larger, "−" = Sell larger (a label, not a judgment)
         const sign = d >= 0 ? "+" : "−";

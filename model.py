@@ -76,9 +76,10 @@ class Sell:
     title: float
     total_costs: float
     payoff: float
-    net_proceeds: float
+    net_proceeds: float  # cash in hand BEFORE cap-gains tax (the audit breakdown's subtotal)
     capital_gain: float
-    tax: float
+    tax: float  # cap-gains tax owed at closing on a gain ($0 on a loss)
+    net_after_tax: float  # net_proceeds − tax: the amount actually available to invest
 
 
 @dataclass
@@ -346,7 +347,25 @@ class Model:
         # (IRC §1001/§1016 — selling expenses reduce the amount realized). Negative => loss.
         gain = (p.home_value - total) - p.cost_basis
         tax = 0.0 if gain <= CG_EXCLUSION else (gain - CG_EXCLUSION) * CAP_GAINS_RATE
-        return Sell(p.home_value, broker, transfer, title, total, p.mortgage_bal, net, gain, tax)
+        # The cap-gains tax is OWED AT CLOSING, so only net_proceeds − tax is actually
+        # available to invest on the SELL side. Charging it here keeps the comparison
+        # symmetric: the HOLD path likewise pays its cap-gains tax at the future sale
+        # (hold_net_worth subtracts st.cap_gains_tax). Investing the pre-tax proceeds would
+        # overstate SELL — money owed the IRS can't also compound in the market. (On a loss,
+        # tax is 0, so net_after_tax == net_proceeds; harold-ave sells at a loss.)
+        net_after_tax = net - tax
+        return Sell(
+            p.home_value,
+            broker,
+            transfer,
+            title,
+            total,
+            p.mortgage_bal,
+            net,
+            gain,
+            tax,
+            net_after_tax,
+        )
 
     # ── Rent (year-1 economics; year_index inflates fixed costs) ───────────────
     def _pi_months_in_year(self, year_index: int) -> int:
@@ -630,7 +649,7 @@ class Model:
         return ending - gain * CAP_GAINS_RATE
 
     def best_sell(self, years: int) -> float:
-        np_ = self.calc_sell().net_proceeds
+        np_ = self.calc_sell().net_after_tax  # invest AFTER the closing cap-gains tax
         return max(self.invest_net_worth(np_, years, r) for r in INVEST_RATES)
 
     def break_even_appreciation(self, years: int, opp_rate: float = PRIMARY_INVEST) -> float:
@@ -647,7 +666,7 @@ class Model:
         Returns the break-even appreciation as a rate (e.g. 0.0325). If hold never reaches
         sell within the bracket, returns the bracket endpoint (won't happen in practice).
         """
-        target = self.invest_net_worth(self.calc_sell().net_proceeds, years, opp_rate)
+        target = self.invest_net_worth(self.calc_sell().net_after_tax, years, opp_rate)
         lo, hi = -0.10, 0.25
         for _ in range(100):
             mid = (lo + hi) / 2
@@ -735,7 +754,7 @@ class Model:
         """
         p = self.p
         sell = self.calc_sell()
-        np_ = sell.net_proceeds
+        np_ = sell.net_after_tax  # SELL invests proceeds net of the closing cap-gains tax
         H = HORIZONS
 
         rent_rows = {}

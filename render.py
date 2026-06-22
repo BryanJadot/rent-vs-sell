@@ -337,7 +337,7 @@ def build_context(m: Model) -> dict:
         f"the dashes mean you'd already have sold)</span></td>{w3}</tr>"
     )
     for rate in INVEST_RATES:
-        vals = [m.invest_net_worth(sell.net_proceeds, y, rate) for y in H]
+        vals = [m.invest_net_worth(sell.net_after_tax, y, rate) for y in H]
         headline += _nw_row(
             f'<b>Sell now + invest @ {rate * 100:.0f}%</b> <span class="sub">(after-tax)</span>',
             vals,
@@ -402,13 +402,13 @@ def build_context(m: Model) -> dict:
         for y in H
     )
     be_tbl_sell = "".join(
-        f"<td>{m.invest_net_worth(sell.net_proceeds, y, PRIMARY_INVEST):,.0f}</td>" for y in H
+        f"<td>{m.invest_net_worth(sell.net_after_tax, y, PRIMARY_INVEST):,.0f}</td>" for y in H
     )
     be_tbl_gap = ""
     for y in H:
         d = m.hold_net_worth(
             p.primary_rent, y, PRIMARY_APPRECIATION, opp_rate=PRIMARY_INVEST
-        ).net_worth - m.invest_net_worth(sell.net_proceeds, y, PRIMARY_INVEST)
+        ).net_worth - m.invest_net_worth(sell.net_after_tax, y, PRIMARY_INVEST)
         sign = "+" if d >= 0 else "−"
         be_tbl_gap += f"<td>{sign}{abs(d):,.0f}</td>"
     be_table_seed = (
@@ -463,8 +463,8 @@ def build_context(m: Model) -> dict:
         for r in p.realistic_rents
     )
 
-    inc_lo = sell.net_proceeds * INVEST_RATES[0]
-    inc_hi = sell.net_proceeds * INVEST_RATES[1]
+    inc_lo = sell.net_after_tax * INVEST_RATES[0]
+    inc_hi = sell.net_after_tax * INVEST_RATES[1]
 
     # "Other factors" — rent-level range: the longest-horizon hold net worth across a
     # plausible rent band (low = $500 below primary, high = $500 above the upper realistic

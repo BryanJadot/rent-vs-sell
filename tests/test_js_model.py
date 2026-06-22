@@ -44,7 +44,7 @@ const out = input.points.map((pt) => {
   const hold = engine.holdNetWorth(
     P, P.primary_rent, pt.years, pt.appr, pt.market, 'full_rental', pt.rent_growth
   ).netWorth;
-  const sell = engine.investNetWorth(P, engine.calcSell(P).netProceeds, pt.years, pt.market);
+  const sell = engine.investNetWorth(P, engine.calcSell(P).netAfterTax, pt.years, pt.market);
   return { hold, sell };
 });
 process.stdout.write(JSON.stringify(out));
@@ -88,7 +88,7 @@ def test_js_matches_python_within_one_dollar(prop_path):
     points = _points()
     js = _run_node(params, points)
 
-    np_ = m.calc_sell().net_proceeds
+    np_ = m.calc_sell().net_after_tax  # SELL invests proceeds net of closing cap-gains tax
     mismatches = []
     for pt, jr in zip(points, js):
         # Python HOLD at the same inputs; rent_growth flows through a second Model so it

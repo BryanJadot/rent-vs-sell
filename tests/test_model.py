@@ -183,7 +183,7 @@ def test_break_even_appreciation_ties_hold_and_sell(m):
         hold = m.hold_net_worth(
             m.p.primary_rent, y, be, opp_rate=assumptions.PRIMARY_INVEST
         ).net_worth
-        sell = m.invest_net_worth(m.calc_sell().net_proceeds, y, assumptions.PRIMARY_INVEST)
+        sell = m.invest_net_worth(m.calc_sell().net_after_tax, y, assumptions.PRIMARY_INVEST)
         assert abs(hold - sell) < 1.0  # bisection converges to the cent
 
 
@@ -225,6 +225,26 @@ def test_sell_with_gain_is_taxed(fix):
     assert s.capital_gain > 0
     expected = max(0.0, s.capital_gain - CG_EXCLUSION) * CAP_GAINS_RATE
     assert abs(s.tax - expected) < 1.0
+    # The cap-gains tax is owed at closing, so the amount actually invested is net_after_tax,
+    # NOT net_proceeds. On a gain these differ by exactly the tax; investing the pre-tax
+    # proceeds would overstate SELL (the original bug). On a loss they coincide (tax == 0).
+    assert s.net_after_tax == pytest.approx(s.net_proceeds - s.tax)
+    assert s.net_after_tax < s.net_proceeds  # a gain property: tax > 0
+
+
+def test_sell_invests_after_tax_proceeds_not_pretax(fix):
+    """best_sell / invest must compound net_after_tax, not the pre-tax net_proceeds —
+    otherwise the SELL side invests money already owed the IRS at closing (the symmetry
+    the hold path keeps by paying its own cap-gains tax at the future sale)."""
+    s = fix.calc_sell()
+    yrs, rate = 10, assumptions.PRIMARY_INVEST
+    correct = fix.invest_net_worth(s.net_after_tax, yrs, rate)
+    overstated = fix.invest_net_worth(s.net_proceeds, yrs, rate)
+    assert overstated > correct  # investing pre-tax proceeds would overstate SELL
+    # best_sell uses the after-tax basis (max across the invest rates), never the pre-tax one.
+    assert fix.best_sell(yrs) == pytest.approx(
+        max(fix.invest_net_worth(s.net_after_tax, yrs, r) for r in assumptions.INVEST_RATES)
+    )
 
 
 def test_positive_cash_flow_path(fix):
