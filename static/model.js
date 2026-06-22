@@ -546,9 +546,13 @@ if (typeof document !== "undefined") {
         ? `The Hold and Sell curves keep the same order across every year shown (${grid[0]}–${hz}).`
         : `The two curves cross around year ${crossover}.`;
 
+    // Ground the future-dollar gap in today's purchasing power: a dollar `hz` years out is
+    // worth 1/(1+inflation)^hz today (same factor the report's "worth ~X today" line uses).
+    const todayGap = gap / Math.pow(1 + P.inflation_rate, hz);
+
     return (
       `At ${hz} yrs: Hold is worth <b>${fmtDollars(holdHz)}</b>, Sell <b>${fmtDollars(sellHz)}</b> ` +
-      `— a <b>${fmtDollars(gap)}</b> gap. ${crossText}`
+      `— a <b>${fmtDollars(gap)}</b> gap (about <b>${fmtDollars(todayGap)}</b> in today's money). ${crossText}`
     );
   }
 

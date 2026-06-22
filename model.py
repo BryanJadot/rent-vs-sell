@@ -824,6 +824,7 @@ class Model:
             "sell_soon_max_years": SELL_SOON_MAX_YEARS,
             "passive_loss_usable_yearly": PASSIVE_LOSS_USABLE_YEARLY,
             "passive_loss_magi_limit": PASSIVE_LOSS_MAGI_LIMIT,
+            "inflation_rate": INFLATION_RATE,  # for the readout's "in today's money" gloss
             "reserve_rate": RESERVE_RATE,
             "bad_vacancy_months": BAD_VACANCY_MONTHS,
             "eviction_cost": EVICTION_COST,
