@@ -18,28 +18,53 @@ Each year you hold, ask a single question:
 Let **g(S)** = the year-over-year growth rate of your *after-fee, after-tax walk-away
 cash* if you sold in year S. Then:
 
-- **g(S) > market return** → hold one more year (the house is out-compounding stocks).
-- **g(S) < market return** → sell now and invest (stocks win from here).
+- **g(S) > the bar** → hold one more year (the house is out-compounding stocks).
+- **g(S) < the bar** → sell now and invest (stocks win from here).
 
 The horizon cancels out — both paths compound at the market after you're liquid — so the
-choice is purely **g(S) vs. the market return, year by year.** The optimal sell-year is
-the *last* year g(S) is still above the market.
+choice is **g(S) vs. a fixed bar, year by year.** The optimal sell-year is the *last* year
+g(S) is above the bar.
+
+**The bar is NOT the headline market rate — it's a bit lower.** When you sell and reinvest,
+those reinvested proceeds get taxed AGAIN at the final liquidation (cap-gains at year 30).
+So the sell-and-reinvest path doesn't net the full 7.5% — the house's g(S) only has to beat
+the *after-final-tax* market growth, a lower hurdle. Using the naive 7.5% bar makes the
+crossing look ~1 year earlier than it really is (see the plateau below). This is the one
+place the clean "g vs. market" intuition is approximate.
 
 ### Why g(S) decays (this is the whole engine)
 
-g(S) starts high and falls monotonically toward the unlevered appreciation rate, because
-the two forces that make it high are temporary:
+Your equity grows each year from two sources — appreciation dollars on the *whole* house,
+plus the principal you pay down — but that gain is measured against an equity base that is
+**growing fast**, so the *percentage* falls every year. The on-paper (pre-fee, pre-tax)
+equity math, year by year, at 4.5% appreciation:
 
-1. **Leverage on appreciation.** The house appreciates on its *full* value (~$1.5M) while
-   you only staked your *equity* (~$390k). At 4.5% appreciation that's ~16%/yr on your
-   equity in the early years. As equity grows, the levered boost blends down toward the
-   raw 4.5%.
-2. **Principal paydown at a cheap rate.** Early payments convert 2.25% mortgage interest
-   into equity fast. Once the loan is mostly paid (~year 26), this contribution vanishes.
+| Year | Equity (start) | + Appreciation $ | + Principal paid | = Gain | YoY growth |
+|---|---|---|---|---|---|
+| →1 | 392,298 | 67,284 | 32,396 | 99,680 | **25.4%** |
+| →2 | 491,977 | 70,312 | 33,132 | 103,444 | **21.0%** |
+| →3 | 595,421 | 73,476 | 33,885 | 107,361 | **18.0%** |
+| →4 | 702,782 | 76,782 | 34,656 | 111,438 | **15.9%** |
+| →5 | 814,220 | 80,237 | 35,443 | 115,681 | **14.2%** |
 
-So g(S) is high early (both forces firing), then decays. The moment it crosses below the
-market return, holding is value-destroying — **and it never crosses back.** One crossing,
-one decision.
+The dollar gain *rises* (~$100k → $116k), but the equity base rises faster (392k → 814k),
+so the rate slides 25% → 14% and keeps heading toward the unlevered 4.5%. That's the
+leverage decay — pure arithmetic: a small early stake riding the whole house's gain,
+diluted as the stake grows. (The 2.25% loan is fixed, so the *rate* is locked; what melts
+is the *amount* of cheap leverage as you pay it down.)
+
+**But the number that decides the question is lower than that on-paper equity.** Walk-away
+cash subtracts selling costs (~6.4% of the home), the deferred cap-gains/recapture tax,
+negative rental cash flow, and the reserve drag — all of which scale with the (growing)
+home value. So the *real* g(S) (walk-away basis) runs ~20.6% → 15.6% → **7.3%** by year 3,
+crossing the market hurdle around **year 2.5–3** on the marginal test. Both numbers decay
+for the same leverage reason; walk-away is the one that matters, because it's the cash you
+actually get.
+
+The moment g(S) crosses below the bar, holding is value-destroying — **and it never crosses
+back.** One crossing, one decision. (Caveat: the marginal "g vs. bar" crossing is ~year 3,
+but the *full-horizon* economic optimum is later, ~year 5 — see "Why year 3" below for why
+these differ.)
 
 ---
 
@@ -50,33 +75,41 @@ appreciation rate. That carves the whole decision into three bands:
 
 | If home appreciation is… | Optimal move | Why |
 |---|---|---|
-| **below ~1.75%** | **Sell now.** | Even the early levered g is already below the market. The house never out-earns stocks. |
-| **~1.75% to ~5.18%** | **Hold ~2–3 years, then sell.** | Early levered g beats the market for a few years, then decays below it. Sell as that edge expires. |
-| **above ~5.18%** | **Hold for the long horizon.** | g(S) stays above the market the whole way; the house out-compounds stocks indefinitely. |
+| **below ~1.75%** | **Sell now.** | Even the early levered g is already below the bar. The house never out-earns stocks. |
+| **~1.75% to ~5.18%** | **Sell within ~3 years.** | Levered g beats the bar for a few years, then decays below it. Economics alone gives a flat plateau (~yrs 3–6); the §121 deadline pulls the sharp answer to **year 3**. |
+| **above ~5.18%** | **Hold for the long horizon.** | g(S) stays above the bar the whole way; the house out-compounds stocks indefinitely. |
 
 (Thresholds are for the harold-ave inputs at 7.5% market; they move with the market-return
 and rent sliders. Raise the market return → both thresholds rise → the bands shift toward
 selling. They are *consequences* of g-vs-market, not magic constants.)
 
-**The base case (4.5% appreciation, 7.5% market) sits in the middle band → hold ~2–3 years.**
+**The base case (4.5% appreciation, 7.5% market) sits in the middle band → sell within ~3 years.**
 
 ---
 
-## The §121 coincidence — why "2–3 years" specifically
+## Why "year 3" — and what's actually doing the work
 
-Two *independent* clocks both point at year 3, which is why the peak is so sharp:
+It's tempting to say "the economics and the tax break coincidentally both point at year 3."
+**That's not quite right, and the truer version matters.** Decomposing it:
 
-1. **Economic clock:** at sub-5% appreciation, g(S) crosses the market return around year 3
-   anyway (the levered edge is expiring).
-2. **Tax clock:** the §121 primary-residence cap-gains exclusion ($250k) survives only
-   while you're inside the 2-of-5-year window — i.e. through year 3. Sell in year 4 and you
-   lose it, a one-time ~$75k hit (the "cliff" in the chart).
+1. **Pure economics (ignore §121 entirely): the optimum is a flat plateau around years
+   3–6, peaking at ~year 5.** Holding 30-yr wealth (no tax break anywhere) runs
+   2,121,984 (S=3) → 2,129,278 (S=4) → 2,136,533 (S=5) → 2,138,754 (S=6 peak) → then
+   declines — all within ~0.3% of each other from 3 to 6. So on economics *alone* there is
+   no sharp "year 3" answer; there's a broad, shallow plateau and you'd lean to ~5.
+   (The naive "g(S) crosses 7.5% at ~year 2.5" undershoots because of the after-final-tax
+   bar above: the real economic crossing sits later, ~year 5.)
+2. **§121 is what sharpens it to year 3.** The $250k primary-residence exclusion survives
+   only inside the 2-of-5-year window — through year 3. Sell in year 4 and you lose it, a
+   one-time ~$75k hit (the "cliff"). That cliff is bigger than the ~$9k of economic upside
+   from holding 3→5, so it drags the sharp optimum back to **3**: with the real §121 rule,
+   S=3 jumps to 2,212,255, clearly the best.
 
-They reinforce: the year your levered edge runs out is also the last year you keep the tax
-exclusion. **Don't mistake this for "2–3 years is a universal sweet spot."** It's a
-coincidence of *these* inputs. The rising 1→3 side of the curve is pure
-leverage-on-appreciation (it would rise even with no §121); §121 just sharpens the top and
-makes year 3 the hard deadline rather than a soft optimum.
+So the honest statement: **the economic optimum is a shallow plateau (~yrs 3–6); the §121
+deadline is doing the work that makes the answer a crisp "year 3."** They don't
+independently coincide — the tax break drives it. The rising 1→3 side of the curve *is*
+pure leverage (it rises with or without §121); but the *sharp top at 3* is the tax break,
+not the economics.
 
 ---
 
@@ -154,8 +187,10 @@ prediction.
 
 ## One-line summary
 
-> The choice reduces to **g(S) vs. the market return**: hold while your levered, after-tax
-> walk-away cash grows faster than stocks, sell when it stops. For this house that puts the
-> economic and the §121-tax deadlines both around **year 3 in the 2–5% appreciation band** —
-> but the point-estimate premium ignores the *concentrated* bad-year risk, the landlord work,
-> and its dependence on cheap leverage, all of which you must price yourself.
+> The choice reduces to **g(S) vs. an after-tax market bar**: hold while your levered,
+> after-tax walk-away cash grows faster than stocks-net-of-final-tax, sell when it stops.
+> On economics alone that's a shallow plateau around **years 3–6** (peak ~5); the **§121 tax
+> deadline at year 3** is what sharpens the answer to a crisp "sell by year 3" in the 2–5%
+> appreciation band. The point-estimate premium ignores the *concentrated* bad-year risk and
+> the landlord work, which you must price yourself (the fixed 2.25% loan, by contrast, makes
+> the early edge *durable* — not a risk).
